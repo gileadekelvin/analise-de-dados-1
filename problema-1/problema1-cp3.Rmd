@@ -1,0 +1,30 @@
+---
+title: "Problema 1 - Checkpoint 1"
+author: "Gileade"
+date: "17 de maio de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+theme_set(theme_bw())
+```
+
+```{r leitura dos dados}
+series_imdb = read_csv("series_from_imdb.csv")
+```
+
+## Descrição geral das variáveis
+
+```{r}
+series_imdb %>%
+  ggplot(aes(UserRating)) +
+  geom_histogram(binwidth = .5)
+```
+
+
+
