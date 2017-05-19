@@ -11,8 +11,13 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="
 ```
 
 ```{r}
-library(tidyverse)
+#library(tidyverse)
 library(knitr)
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(readr)
 theme_set(theme_bw())
 ```
 
@@ -34,14 +39,6 @@ Portanto as séries escolhidas para a análise são:
 ```{r}
 levels(series_netflix$series_name)
 ```
-
-Algumas observações estão repetidas e serão retiradas para a análise a seguir. Uma observação é considerada duplicada se possui a mesma url, ou seja, a mesma página de episódio no IMDB, que possui páginas individuais para cada episódio.
-
-```{r}
-series_netflix <- series_netflix %>%
-  distinct(url, .keep_all = TRUE)
-```
-
 São `r nrow(series_netflix)` observações de 6 séries com `r ncol(series_netflix)` variáveis disponíveis. Na seção seguinte iremos descobrir sobre algumas delas.
 
 ## Descrição das variáveis
@@ -166,14 +163,14 @@ Ou seja dependendo do critério utilizado pode ser que o resultado da **série m
 ```{r}
 series_netflix %>%
   ggplot(aes(series_name, UserRating)) +
-  geom_boxplot() +
+  geom_boxplot(outlier.colour = NA) +
+  geom_jitter(width = .2, color = 'darkred') +
   stat_summary(fun.y=mean, colour="blue", geom="point", 
                shape=18, size=3, show_guide = FALSE) +
-  geom_jitter(width = .2, color = 'darkred') +
   labs(x = "Série", y = "Número de votos")
 ```
 
-A partir dessa visualização passamos a ter mais informações sobre os dados. Podemos observar que a mediana, linha central da caixa (boxplot) é superior em Sense8, no entanto, a **média (ponto em azul)** em Daredevil é maior. 13 Reasons Why, House of Cards e Narcos possuem medianas bem inferiores as demais e portanto já estão fora da disputa do prêmio de **série mais bem avaliada**. Sense8 é a série que possui maior variação nas notas atribuídas, ou seja, os episódios são avaliados com notas bem distintas, alguns são muito bem avaliados, outros muito mal. Esse fator faz com que essa série saia fora da disputa também. Uma forma de medir essa variação é determinar a diferença entre a nota mínima e a nota máxima de um episódio da série (amplitude).
+A partir dessa visualização passamos a ter mais informações sobre os dados. Podemos observar que a mediana, linha central da caixa (boxplot) é superior em Sense8, no entanto, a **média (ponto em azul)** em Daredevil é maior. Os outliers do boxplot foram retirados pois já estamos visualizando todo o conjunto de dados através do Scatter Plot (gráfico de dispersão) 13 Reasons Why, House of Cards e Narcos possuem medianas bem inferiores as demais e portanto já estão fora da disputa do prêmio de **série mais bem avaliada**. Sense8 é a série que possui maior variação nas notas atribuídas, ou seja, os episódios são avaliados com notas bem distintas, alguns são muito bem avaliados, outros muito mal. Esse fator faz com que essa série saia fora da disputa também. Uma forma de medir essa variação é determinar a diferença entre a nota mínima e a nota máxima de um episódio da série (amplitude).
 Em Sense8 `r max(series_netflix %>% filter(series_name == 'Sense8') %>% select(UserRating)) - min(series_netflix %>% filter(series_name == 'Sense8') %>% select(UserRating))`, em Daredevil `r max(series_netflix %>% filter(series_name == 'Daredevil') %>% select(UserRating)) - min(series_netflix %>% filter(series_name == 'Daredevil') %>% select(UserRating))` e em Stranger Things `r max(series_netflix %>% filter(series_name == 'Stranger Things') %>% select(UserRating)) - min(series_netflix %>% filter(series_name == 'Stranger Things') %>% select(UserRating))`
 
 Na grande final, temos Daredevil e Stranger Things, como a média de Daredevil é maior, se considerarmos essa métrica como critério de desempate, Daredevil é a **série bem mais avaliada** das séries escolhidas, embora a diferença seja **pequena**.
