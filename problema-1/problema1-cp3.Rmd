@@ -183,7 +183,7 @@ Claro que como são critérios escolhidos, existe uma certa subjetividade em det
 
 ### Qual das séries que você escolheu tem episódios de qualidade mais irregular segundo o IMDB? A diferença é grande? Pequena?
 
-Definiremos iregularidade na qualidade dos episódios como os altos e baixos dos episódios dentro de uma temporada e entre temporadas.
+A priori, definiremos iregularidade na qualidade dos episódios como a tendência de crescimento dos episódios ao longo do tempo. Ou seja, em geral se a série vai aumentando ou diminuindo os ratings conforme seu andamento (passar do tempo).
 
 Uma primeira visualização que pode ajudar a responder essa pergunta é:
 
@@ -192,12 +192,25 @@ series_netflix %>%
   ggplot(aes(series_ep, UserRating, color = as.factor(season))) +
   geom_line() +
   facet_wrap(~ series_name) +
-  labs(x = "Número do episódio", y = "Nota dos usuários", color = "Temporada")
+  labs(x = "Número do episódio", y = "Nota dos usuários", color = "Temporada", title = "Ratings dos episódios por temporada por série")
 ```
 
-Observando o gráfico notamos que em 13 reasons Why apesar de alguns episódios apresentarem uma queda com relaçao ao anterior, a tendência é que as notas atribuídas aumentem a medida que os episódios vão passando. De forma semelhante acontece em Stranger Things e em Sense8. Ou seja, se considerarmos irregularidade na qualidade como a falta de tendência clara de queda ou subida no rating dos usuários durante maior parte da temporada, séries como Narcos, Daredevil e House of Cards são as que apresentam maior irregularidade. Pois os episódios apresentam com bem mais frequência alternância entre altos e baixos.
+Observando o gráfico notamos que em 13 reasons Why apesar de alguns episódios apresentarem uma queda com relaçao ao anterior, a tendência é que as notas atribuídas aumentem a medida que os episódios vão passando. De forma semelhante acontece em Stranger Things e em Sense8. Ou seja, se considerarmos irregularidade na qualidade como a falta de tendência clara de queda ou subida no rating dos usuários durante maior parte da temporada, séries como Narcos, Daredevil e House of Cards são as que apresentam maior irregularidade.
 
-Ao levarmos em conta as maiores variações e picos entre os episódios temos que **House Of Cards** possui *a maior irregularidade na qualidade dos episódios* seguida de perto por Narcos.
+```{r}
+series_netflix %>%
+  mutate(UserRating.lag = UserRating - lag(UserRating)) %>% 
+  ggplot(aes(series_ep, UserRating.lag, color = as.factor(season))) +
+  geom_line() +
+  facet_wrap(~ series_name) +
+  labs(x = "Número do episódio", y = "Nota dos usuários", color = "Temporada", title = "Diferenças entre episódios por temporada por série")
+```
+
+A visualização acima aponta para a diferença entre os **ratings** de um episódio e seu anterior. Ou seja, estamos tratando as notas das séries de maneira temporal (como uma série temporal), buscando entender como os episódios variam com relação ao anterior. Isso aponta para o conceito que irregularidade deixa de ser a tendência e passa a ser o quanto episódios variam com relação ao seu anterior. Uma leitura possível é que quanto mais próximo do 0 (eixo y - nota dos usuários) menos variação entre os episódios, e quanto mais as linhas vão se distanciando do 0, maior a variação. 
+
+Outra informação importante é o espaçamento entre os episódios, quanto mais juntos os "**pulsos**" maior é a frequência da diferença entre os episódios. Se os pulsos tem um "*período*" menor indica que um grupo de episódios em sequência obtiveram notas parecidas e possivelmente diferentes do episódio seguinte a esse grupo, como exemplo temos o começo da temporada de sense8, no qual observamos alguns grupos de episódios com notas parecidas fazendo com que o pulso tenha um período maior (os picos são mais largos).
+
+Ao levarmos em conta as maiores variações (incluindo o quão distante essas variações estão do 0) e picos entre os episódios temos que **House Of Cards** possui *a maior irregularidade na qualidade dos episódios*.
 
 **Outra abordagem** seria considerarmos irregularidade na qualidade em quão distante os valores observados encontram-se do valor esperado. Ou seja, se utilizarmos o desvio padrão, medida de dispersão, para indicar o quão próximo ou distantes o ponto vão estar do valor esperado(média), pode ser um indício de irregularidade na qualidade da série. 
 
