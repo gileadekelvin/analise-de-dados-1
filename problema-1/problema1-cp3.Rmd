@@ -11,13 +11,9 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="
 ```
 
 ```{r}
-#library(tidyverse)
+library(tidyverse)
 library(knitr)
 
-library(dplyr)
-library(tidyr)
-library(ggplot2)
-library(readr)
 theme_set(theme_bw())
 ```
 
@@ -170,7 +166,9 @@ series_netflix %>%
   labs(x = "Série", y = "Número de votos")
 ```
 
-A partir dessa visualização passamos a ter mais informações sobre os dados. Podemos observar que a mediana, linha central da caixa (boxplot) é superior em Sense8, no entanto, a **média (ponto em azul)** em Daredevil é maior. Os outliers do boxplot foram retirados pois já estamos visualizando todo o conjunto de dados através do Scatter Plot (gráfico de dispersão) 13 Reasons Why, House of Cards e Narcos possuem medianas bem inferiores as demais e portanto já estão fora da disputa do prêmio de **série mais bem avaliada**. Sense8 é a série que possui maior variação nas notas atribuídas, ou seja, os episódios são avaliados com notas bem distintas, alguns são muito bem avaliados, outros muito mal. Esse fator faz com que essa série saia fora da disputa também. Uma forma de medir essa variação é determinar a diferença entre a nota mínima e a nota máxima de um episódio da série (amplitude).
+A partir dessa visualização passamos a ter mais informações sobre os dados. Podemos observar que a mediana, linha central da caixa (boxplot) é superior em Sense8, no entanto, a **média (ponto em azul)** em Daredevil é maior. Os outliers do boxplot foram retirados pois já estamos visualizando todo o conjunto de dados através do Scatter Plot (gráfico de dispersão).
+
+13 Reasons Why, House of Cards e Narcos possuem medianas bem inferiores as demais e portanto já estão fora da disputa do prêmio de **série mais bem avaliada**. Sense8 é a série que possui maior variação nas notas atribuídas, ou seja, os episódios são avaliados com notas bem distintas, alguns são muito bem avaliados, outros muito mal. Esse fator faz com que essa série saia fora da disputa também. Uma forma de medir essa variação é determinar a diferença entre a nota mínima e a nota máxima de um episódio da série (amplitude).
 Em Sense8 `r max(series_netflix %>% filter(series_name == 'Sense8') %>% select(UserRating)) - min(series_netflix %>% filter(series_name == 'Sense8') %>% select(UserRating))`, em Daredevil `r max(series_netflix %>% filter(series_name == 'Daredevil') %>% select(UserRating)) - min(series_netflix %>% filter(series_name == 'Daredevil') %>% select(UserRating))` e em Stranger Things `r max(series_netflix %>% filter(series_name == 'Stranger Things') %>% select(UserRating)) - min(series_netflix %>% filter(series_name == 'Stranger Things') %>% select(UserRating))`
 
 Na grande final, temos Daredevil e Stranger Things, como a média de Daredevil é maior, se considerarmos essa métrica como critério de desempate, Daredevil é a **série bem mais avaliada** das séries escolhidas, embora a diferença seja **pequena**.
@@ -183,7 +181,7 @@ Claro que como são critérios escolhidos, existe uma certa subjetividade em det
 
 ### Qual das séries que você escolheu tem episódios de qualidade mais irregular segundo o IMDB? A diferença é grande? Pequena?
 
-A priori, definiremos iregularidade na qualidade dos episódios como a tendência de crescimento dos episódios ao longo do tempo. Ou seja, em geral se a série vai aumentando ou diminuindo os ratings conforme seu andamento (passar do tempo).
+A priori, definiremos iregularidade na qualidade dos episódios como a falta de tendência de crescimento dos episódios ao longo do tempo. Ou seja, em geral se a série vai aumentando ou diminuindo os ratings conforme seu andamento (passar do tempo).
 
 Uma primeira visualização que pode ajudar a responder essa pergunta é:
 
@@ -206,11 +204,11 @@ series_netflix %>%
   labs(x = "Número do episódio", y = "Nota dos usuários", color = "Temporada", title = "Diferenças entre episódios por temporada por série")
 ```
 
-A visualização acima aponta para a diferença entre os **ratings** de um episódio e seu anterior. Ou seja, estamos tratando as notas das séries de maneira temporal (como uma série temporal), buscando entender como os episódios variam com relação ao anterior. Isso aponta para o conceito que irregularidade deixa de ser a tendência e passa a ser o quanto episódios variam com relação ao seu anterior. Uma leitura possível é que quanto mais próximo do 0 (eixo y - nota dos usuários) menos variação entre os episódios, e quanto mais as linhas vão se distanciando do 0, maior a variação. 
+A visualização acima aponta para a diferença entre os **ratings** de um episódio e seu anterior. Ou seja, estamos tratando as notas das séries de maneira temporal (como uma série temporal), buscando entender como os episódios variam com relação ao anterior. Isso aponta para o conceito que irregularidade **deixa de ser a tendência e passa a ser o quanto episódios variam com relação ao seu anterior**. Uma leitura possível é que quanto mais próximo do 0 (eixo y - nota dos usuários) menos variação entre os episódios, e quanto mais as linhas vão se distanciando do 0, maior a variação. 
 
 Outra informação importante é o espaçamento entre os episódios, quanto mais juntos os "**pulsos**" maior é a frequência da diferença entre os episódios. Se os pulsos tem um "*período*" menor indica que um grupo de episódios em sequência obtiveram notas parecidas e possivelmente diferentes do episódio seguinte a esse grupo, como exemplo temos o começo da temporada de sense8, no qual observamos alguns grupos de episódios com notas parecidas fazendo com que o pulso tenha um período maior (os picos são mais largos).
 
-Ao levarmos em conta as maiores variações (incluindo o quão distante essas variações estão do 0) e picos entre os episódios temos que **House Of Cards** possui *a maior irregularidade na qualidade dos episódios*.
+Ao levarmos em conta as maiores variações (incluindo o quão distante essas variações estão do 0) e picos entre os episódios temos que **House Of Cards** possui **a maior irregularidade na qualidade dos episódios**.
 
 **Outra abordagem** seria considerarmos irregularidade na qualidade em quão distante os valores observados encontram-se do valor esperado. Ou seja, se utilizarmos o desvio padrão, medida de dispersão, para indicar o quão próximo ou distantes o ponto vão estar do valor esperado(média), pode ser um indício de irregularidade na qualidade da série. 
 
@@ -223,6 +221,6 @@ series_netflix.sumarizado %>%
 
 Pelo gráfico notamos que Sense8 possui o maior desvio padrão e portanto, segundo essa outra abordagem, é a **série que tem episódios de qualidade mais irregular** dentre as analisadas no conjunto de dados.
 
-A conclusão das duas abordagens diferem, o que mostra que a resposta para a pergunta não é **absoluta** mas pode ser considerada **satisfatória** e coerente diante dos dados e dos critérios utilizados.
+A conclusão das abordagens diferem, o que mostra que a resposta para a pergunta não é **absoluta** mas pode ser considerada **satisfatória** e coerente diante dos dados e dos critérios utilizados.
 
 Até a próxima análise!!!
