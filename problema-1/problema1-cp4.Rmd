@@ -1,0 +1,183 @@
+---
+title: "Análise de dados sobre séries"
+author: "Gileade Kelvin"
+date: "26 de maio de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="center")
+```
+
+```{r}
+library(tidyverse)
+library(knitr)
+
+theme_set(theme_bw())
+```
+
+```{r leitura dos dados}
+series_imdb <- read_csv("series_from_imdb.csv")
+```
+
+## Conjunto de dados utilizado
+
+Diante do conjunto de dados disponível para análise [aqui](https://github.com/nazareno/imdb-series/raw/master/data/series_from_imdb.csv) optei por escolher as séries originais da Netflix. Ou seja, as séries produzidas e disponibilizadas pela Netflix para todo o mundo. A fonte dos dados é o IMDB, um banco de dados online com informação sobre música, filmes, **séries**, cinema, jogos, programas e comerciais de TV, atualmente percente a Amazon. 
+
+```{r}
+series_netflix <- series_imdb %>% filter(series_name %in% c("13 Reasons Why", "Daredevil",  "House of Cards", "Narcos", "Sense8", "Stranger Things")) %>%
+  mutate(series_name = factor(series_name)) %>%
+  mutate(season = factor(season))
+```
+
+Portanto as séries escolhidas para a análise são:
+
+```{r}
+levels(series_netflix$series_name)
+```
+
+São `r nrow(series_netflix)` observações de 6 séries com `r ncol(series_netflix)` variáveis disponíveis. Na seção seguinte iremos descobrir sobre algumas delas.
+
+## Descrição das variáveis
+
+A seguir estamos interessados em entender, de forma geral, quais as variáveis que iremos utilizar na análise e qual seu comportamento.
+
+Cada observação no nosso conjunto de dados possui como variáveis:
+
+```{r}
+colnames(series_netflix)
+```
+* series_name: o nome da série.
+* series_ep: o número do episódio desde o primeiro ignorando temporadas.
+* season_ep: o número do episódio dentro de uma temporada.
+* url: link para a página do episódio no imdb.
+* Episode: nome do episódio.
+* UserRating: rating associado ao episódio pelo imdb. É explicado  [aqui](http://www.imdb.com/help/show_leaf?votestopfaq).
+* UserVotes: número de votos no imdb.
+* r1, r2, ..., r10: proporção de notas de usuários com score 1, 2, ..., 10.
+
+### Panorama da variável UserRating (nota dos usuários)
+
+Uma das variáveis que utilizaremos para responder as perguntas dessa análise é a UserRating, daqui por diante mencionada como nota ou rating atribuído a um episódio.
+
+Inicialmente se olharmos a distribuição dos **ratings (notas)** dadas aos episódios temos:
+
+```{r}
+series_netflix %>%
+  ggplot(aes(UserRating)) +
+  geom_histogram(binwidth = .1, fill = "#009688") +
+  scale_x_continuous(breaks = seq(7, 10, 0.5)) +
+  labs(y = "Número de ocorrências", x = "Ratings dos usuários")
+```
+
+A largura das barras foi colocada em um décimo para uma representação da distribuição mais real, uma vez que a diferença mínima entre os ratings que variam é de 1 décimo. Sobre a distribuição é possível notar que a grande maioria das notas dadas aos episódios estão acima de 8. Ao olharmos para esse histograma (distribuição de frequências) podemos observar uma *leve* distorção à esquerda, quando a frequência dos dados está concentrada nos altos valores. No entanto, poucos valores estão abaixo de 8. Então se observássemos apenas os valores acima de 8 teríamos.
+
+```{r}
+series_netflix %>%
+  ggplot(aes(UserRating)) +
+  geom_histogram(binwidth = .2, fill = "#009688") +
+  scale_x_continuous(breaks = seq(7, 10, 0.5), limits = c(8, 10)) +
+  labs(y = "Número de ocorrências", x = "Ratings dos usuários")
+```
+
+Agora, definindo o limite para as notas acima de 8 e ajustando a largura das barras para dois décimos, a distribuição parece *um pouco mais* unimodal, no centro está a maior quantidade de dados.
+
+Ainda sobre ratings/notas, a visualização a seguir traz a distribuição das notas dos episódios por série e por temporada.
+
+```{r}
+series_netflix %>%
+  ggplot(aes(series_name, UserRating, color = season)) +
+  geom_jitter(width = .2) +
+  labs(x = "Série", y = "Notas dos usuários", color = "Temporada")
+```
+
+Esse gráfico nos diz várias coisas. A primeira delas é que as séries possuem número de episódios distintos, House of Cards tem mais episódios que Stranger Things por exemplo. Outra observação importante é que as notas em algumas séries variam menos que em outras, ou seja, seus pontos estão mais próximos (verticalmente, eixo y das notas). As notas em Stranger Things variam menos do que em Sense8 por exemplo. Essa visualização também mostra como citado acima que a grande maioria das notas estão acima de 8. 
+
+Outros sumários gerais sobre as notas dos usuários (User Ratings) são:
+
+```{r}
+summary(series_netflix %>% select(UserRating))
+```
+A média é de `r mean(series_netflix$UserRating)` e a mediana, medida que divide os dados de forma que 50% das observações estão abaixo e os outros 50% estão acima, é de `r median(series_netflix$UserRating)`. O que é bem próximo considerando a precisão de 1 décimo das notas.
+
+Agora que conhecemos melhor como os ratings dos episódios se apresentam nos dados das séries originais da Netflix, vamos apresentar o panorama das outras variáveis.
+
+```{r}
+series_netflix.sumarizado <- series_netflix %>%
+        group_by(series_name) %>%
+        summarise(n_eps = n(),
+                  n_seasons = max(as.numeric(season)),
+                  mean_rating = mean(UserRating),
+                  median_rating = median(UserRating))
+
+kable(x = series_netflix.sumarizado %>% 
+        select(series_name, n_seasons, n_eps),
+      col.names = c('Séries', 'Número de temporadas', 'Número de Episódios'))
+```
+
+A tabela acima apresenta uma visão **sumarizada** das variáveis de número de episódios, número de temporadas em cada série. A série que menos possui episódios é Stranger Things, enquanto que a que mais possui episódios é House of Cards. A média do número de episódios é de `r mean(series_netflix.sumarizado$n_eps)` e a média do número de temporadas é de `r mean(series_netflix.sumarizado$n_seasons)`.
+
+Agora que conhecemos o panorama geral das variáveis que iremos trabalhar, podemos responder algumas perguntas sobre as séries selecionadas.
+
+## Qual é a temporada que é melhor avaliada dentro de uma série?
+
+Essa pergunta foi escolhida e meu palpite inicial foi de que as primeiras temporadas das séries são as melhores avaliadas. Vamos conferir abaixo um boxplot por temporada que mostra como uma sumarização dos ratings dos episódios e também um gráfico de dispersão que mostra a distribuição dos ratings. Essa distribuição ignora a ordem cronológica dos episódios.
+
+```{r}
+series_netflix %>%
+  ggplot(aes(season, UserRating, color = season)) +
+  geom_boxplot() +
+  geom_jitter(width = .2) +
+  facet_wrap(~series_name)
+```
+Como algumas séries como 13 Reasons Why e Stranger Things não possuem mais de uma temporada, fica claro que a melhor temporada delas é a primeira. Par as outras séries é possível fazer uma comparação. 
+
+Se tomarmos a **mediana** (linha central do boxplot) como parâmetro é possível identificar visualmente que a **segunda temporada** de Daredevil, House of Cards, Sense8 é melhor que a primeira. A exceção é Narcos, apesar de que Narcos possuem três episódios com notas elevádissmas na segunda temporada com relação a primeira. O que faz com que a média da primeira seja superior a segunda.
+
+Contrariando meu chute inical ao elaborar a questão. Percebemos que para as séries com mais de uma temporada, a segunda temporada é a melhor avaliada da série. Vale a pena esperar e ver se isso se confirma para as próximas temporadas de Stranger Things e 13 Reasons Why.
+
+Ao pensar na resposta para essa pergunta e do critério utilizado, **é possível se perguntar se a temporada que é considerada melhor avaliada** (melhor mediana entre os episódios) é também a **temporada em que a série melhora de avaliação**. Ou seja, é possível que, considerando a sequência temporal dos episódios durante as temporada, a temporada considerada mais bem avaliada dentro de cada série também é a temporada em que a série mais cresceu?
+
+
+## Quais episódios melhores avaliados? E em que parte da temporada eles se encontram? No início, no meio ou no final?
+
+```{r}
+series_netflix %>%
+  ggplot(aes(season_ep, UserRating)) +
+  geom_smooth(method = "lm") +
+  geom_jitter(width = .2)
+```
+
+Por serie
+
+```{r}
+series_netflix %>%
+  ggplot(aes(season_ep, UserRating)) +
+  geom_smooth(method = "lm") +
+  geom_jitter(width = .2) +
+  facet_wrap(~series_name)
+```
+
+Por serie e por temporada
+
+```{r}
+series_netflix %>%
+  ggplot(aes(season_ep, UserRating, color = season)) +
+  geom_smooth(method = "lm") +
+  geom_jitter(width = .2) +
+  facet_wrap(~series_name)
+```
+
+TODO: Ranking dos episodios melhores avaliados
+series_selected %>%
+  ggplot(aes(season_ep, UserRating)) +
+  geom_smooth(method = "lm") +
+  geom_jitter(width = .2) +
+  facet_wrap(~series_name)
+
+
+
+
+
+
+
