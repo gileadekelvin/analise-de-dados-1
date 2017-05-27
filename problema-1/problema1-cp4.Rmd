@@ -67,7 +67,7 @@ series_netflix %>%
   ggplot(aes(UserRating)) +
   geom_histogram(binwidth = .1, fill = "#009688") +
   scale_x_continuous(breaks = seq(7, 10, 0.5)) +
-  labs(y = "Número de ocorrências", x = "Ratings dos usuários")
+  labs(y = "Número de ocorrências", x = "Ratings dos episódios")
 ```
 
 A largura das barras foi colocada em um décimo para uma representação da distribuição mais real, uma vez que a diferença mínima entre os ratings que variam é de 1 décimo. Sobre a distribuição é possível notar que a grande maioria das notas dadas aos episódios estão acima de 8. Ao olharmos para esse histograma (distribuição de frequências) podemos observar uma *leve* distorção à esquerda, quando a frequência dos dados está concentrada nos altos valores. No entanto, poucos valores estão abaixo de 8. Então se observássemos apenas os valores acima de 8 teríamos.
@@ -77,7 +77,7 @@ series_netflix %>%
   ggplot(aes(UserRating)) +
   geom_histogram(binwidth = .2, fill = "#009688") +
   scale_x_continuous(breaks = seq(7, 10, 0.5), limits = c(8, 10)) +
-  labs(y = "Número de ocorrências", x = "Ratings dos usuários")
+  labs(y = "Número de ocorrências", x = "Ratings dos espisódios")
 ```
 
 Agora, definindo o limite para as notas acima de 8 e ajustando a largura das barras para dois décimos, a distribuição parece *um pouco mais* unimodal, no centro está a maior quantidade de dados.
@@ -88,12 +88,12 @@ Ainda sobre ratings/notas, a visualização a seguir traz a distribuição das n
 series_netflix %>%
   ggplot(aes(series_name, UserRating, color = season)) +
   geom_jitter(width = .2) +
-  labs(x = "Série", y = "Notas dos usuários", color = "Temporada")
+  labs(x = "Série", y = "Rating dos episódios", color = "Temporada")
 ```
 
 Esse gráfico nos diz várias coisas. A primeira delas é que as séries possuem número de episódios distintos, House of Cards tem mais episódios que Stranger Things por exemplo. Outra observação importante é que as notas em algumas séries variam menos que em outras, ou seja, seus pontos estão mais próximos (verticalmente, eixo y das notas). As notas em Stranger Things variam menos do que em Sense8 por exemplo. Essa visualização também mostra como citado acima que a grande maioria das notas estão acima de 8. 
 
-Outros sumários gerais sobre as notas dos usuários (User Ratings) são:
+Outros sumários gerais sobre as notas dos episódios (User Ratings) são:
 
 ```{r}
 summary(series_netflix %>% select(UserRating))
@@ -121,60 +121,129 @@ Agora que conhecemos o panorama geral das variáveis que iremos trabalhar, podem
 
 ## Qual é a temporada que é melhor avaliada dentro de uma série?
 
-Essa pergunta foi escolhida e meu palpite inicial foi de que as primeiras temporadas das séries são as melhores avaliadas. Vamos conferir abaixo um boxplot por temporada que mostra como uma sumarização dos ratings dos episódios e também um gráfico de dispersão que mostra a distribuição dos ratings. Essa distribuição ignora a ordem cronológica dos episódios.
+Essa pergunta foi escolhida e meu palpite inicial foi de que as primeiras temporadas das séries são as melhores avaliadas. Vamos conferir abaixo um boxplot por temporada que mostra a sumarização dos ratings dos episódios e também um gráfico de dispersão que mostra a distribuição dos ratings. Essa distribuição ignora a ordem cronológica dos episódios.
 
 ```{r}
 series_netflix %>%
   ggplot(aes(season, UserRating, color = season)) +
   geom_boxplot() +
   geom_jitter(width = .2) +
-  facet_wrap(~series_name)
+  facet_wrap(~series_name) +
+  labs(x = "Temporada", y = "Nota dos episódios", color = "Temporada")
 ```
-Como algumas séries como 13 Reasons Why e Stranger Things não possuem mais de uma temporada, fica claro que a melhor temporada delas é a primeira. Par as outras séries é possível fazer uma comparação. 
+Como algumas séries como 13 Reasons Why e Stranger Things não possuem mais de uma temporada, fica claro que a melhor temporada delas é a primeira. Para as outras séries é possível fazer uma comparação. 
 
-Se tomarmos a **mediana** (linha central do boxplot) como parâmetro é possível identificar visualmente que a **segunda temporada** de Daredevil, House of Cards, Sense8 é melhor que a primeira. A exceção é Narcos, apesar de que Narcos possuem três episódios com notas elevádissmas na segunda temporada com relação a primeira. O que faz com que a média da primeira seja superior a segunda.
+Se tomarmos a **mediana** (linha central do boxplot) como parâmetro é possível identificar visualmente que a **segunda temporada** de Daredevil, House of Cards, Sense8 é melhor que a primeira. A exceção é Narcos, apesar de que Narcos possuem três episódios com notas elevádissmas na segunda temporada com relação a primeira. O que faz com que a média da primeira seja superior a da segunda temporada.
 
-Contrariando meu chute inical ao elaborar a questão. Percebemos que para as séries com mais de uma temporada, a segunda temporada é a melhor avaliada da série. Vale a pena esperar e ver se isso se confirma para as próximas temporadas de Stranger Things e 13 Reasons Why.
+Contrariando meu chute inicial ao elaborar a questão. Percebemos que para as séries com mais de uma temporada, a segunda temporada é a melhor avaliada da série. Vale a pena esperar e ver se isso se confirma para as próximas temporadas de Stranger Things e 13 Reasons Why.
 
-Ao pensar na resposta para essa pergunta e do critério utilizado, **é possível se perguntar se a temporada que é considerada melhor avaliada** (melhor mediana entre os episódios) é também a **temporada em que a série melhora de avaliação**. Ou seja, é possível que, considerando a sequência temporal dos episódios durante as temporada, a temporada considerada mais bem avaliada dentro de cada série também é a temporada em que a série mais cresceu?
+Uma pergunta possível após observar a figura acima é: **Como a distribuição dos ratings ocorrem entre os usuários por temporada para cada série?** (Pergunta derivada)
 
-
-## Quais episódios melhores avaliados? E em que parte da temporada eles se encontram? No início, no meio ou no final?
+Primeiro, precisamos conhecer a distribuição das variáveis que usaremos na resposta. De r1 até r10, temos a porcentagem de usuários que deram nota 1 até 10, respectivamente, ao episódio. O cálculo final do rating do episódio não depende somente dessas porcentagens, o IMDB não divulga como é feito esse cálculo com o intuito de evitar que os usuários burlem o sistema de avaliação.
 
 ```{r}
 series_netflix %>%
-  ggplot(aes(season_ep, UserRating)) +
-  geom_smooth(method = "lm") +
-  geom_jitter(width = .2)
+  gather(score, score_perc, r1:r9) %>%
+  ggplot(aes(score, score_perc, color = series_name)) +
+  geom_point() +
+  facet_wrap(~series_name) +
+  labs(x = "Score (Nota atribuída)", y = "Percentual de Usuários") +
+  guides(color = FALSE)
+```
+As maiores porcentagens de usuários em todas as séries atribuem notas acima de 8 aos episódios, concordando assim com a distribuição do UserRating mostrada no início dessa análise.
+
+Agora que conhecemos a distribuição das porcentagens dos usuários referentes as notas atribuídas, iremos dividir os usuários em grupos de notas com intervalos entre 1 a 4, 5 a 7, 8 a 10.
+
+```{r}
+series_perc_users <- series_netflix %>%
+  group_by(series_name, season) %>%
+  summarise(de_1_a_4 = mean(r1 + r2 + r3 + r4),
+            de_5_a_7 = mean(r5 + r6 + r7), 
+            de_8_a_10 = mean(r8 + r9 + r10)) %>%
+  gather(score, score_perc, de_1_a_4:de_8_a_10)
 ```
 
-Por serie
+```{r}
+series_perc_users %>%
+  ggplot(aes(score, score_perc, fill = season)) +
+  geom_bar(stat = "identity", position = "dodge") + 
+  scale_x_discrete(labels = c("1 a 4", "5 a 7", "8 a 10")) +
+  labs(x = "Score (Nota atribuída)", y = "Percentual de Usuários", color = "Temporada") +
+  facet_wrap(~series_name)
+```
+Agrupando esses intervalos por temporada (pela média das porcentagens dos episódios em toda a temporada) para cada série é possível notar que: (1) A maioria dos usuários atribui notas acima de 8 aos episódios; (2) a segunda temporada de séries como Narcos, Sense8, Daredevil e House Of Cards a maioria dos usuários atribuindo notas entre 8 e 10 é superior as demais temporadas das respectivas séries. 
+
+Um *ponto de discussão* que deriva da resposta a essa pergunta é de que, em geral, as pessoas que avaliam no imdb atribuem notas altas as séries, o que faz com que uma mudança de décimos entre notas de episódios tem impacto diferente dependendo de onde ocorre. Por exemplo, se um episódio A tem avaliação de 7.3 e outro B tem avaliação de 8.3, a dinferença não é tão significativa em relação a diferença entre um episódio C com rating 8.9 para um D com rating 9.3. O que quero dizer é que: é muito mais difícil subir de rating a medida que nos aproximamos dos valores mais extremos, e por isso é mais significativo a diferença entre o segundo caso (C e D) do que no primeiro (A e B), apesar da diferença absoluta apontar o contrário. Essa questão levantada pode ser objeto de estudo em outras análises sobre esse conjunto de dados posteriormente.
+
+## Quais episódios melhores avaliados? E em que parte da temporada eles se encontram? No início, no meio ou no final?
+
+Para responder essa pergunta, inicialmente vamos considerar todos os episódios de todas as séries sem nenhum tipo de disntinção entre eles. 
 
 ```{r}
 series_netflix %>%
   ggplot(aes(season_ep, UserRating)) +
   geom_smooth(method = "lm") +
   geom_jitter(width = .2) +
-  facet_wrap(~series_name)
+  scale_x_continuous(breaks = seq(1, 13, 2)) +
+  labs(x = "Número do episódio na temporada", y = "Nota do episódio")
 ```
+Como observado na visualização acima, se considerarmos todos os episódios, ordenados cronologicamente pelo número correspondente dentro de uma temporada observamos que, em geral, **a uma tendência linear de crescimento dos ratings dos episódios** a medida em que a série vai avançando. 
 
-Por serie e por temporada
+Pelo gráfico é possível perceber que existem alguns episódios com ratings elevados mais no começo do que no final da série, mas não estamos interessados em observações isoladas, mas sim na tendência de crescimento dos ratings ao longo da temporada, ou seja, em geral se os ratings dos episódios do final das temporadas são ou não mais elevados que os do começo.
+
+Será que essa tendência de crescimento ocorre se visualizarmos por série também?
+
+```{r}
+series_netflix %>%
+  ggplot(aes(season_ep, UserRating)) +
+  geom_smooth(method = "lm") +
+  geom_point() +
+  facet_wrap(~series_name) +
+  labs(x = "Número do episódio na temporada", y = "Nota do episódio")
+```
+Como observado acima a tendência de subida nos ratings dos episódios ao longo de uma temporada também é observado para cada série. Algumas séries como Daredevil, House of Cards e Narcos possuem "curvas de crescimento" mais leves (mais horizontais) do que em Sense8, 13 Reasons Why e Stranger Things.
+
+A visualização acima ignora as temporadas entre cada série, mas será que a tendência ainda é de subida por temporada para cada série?
 
 ```{r}
 series_netflix %>%
   ggplot(aes(season_ep, UserRating, color = season)) +
   geom_smooth(method = "lm") +
-  geom_jitter(width = .2) +
-  facet_wrap(~series_name)
+  geom_point() +
+  facet_wrap(~series_name) +
+  labs(x = "Número do episódio na temporada", y = "Nota do episódio", color = "Temporada")
+```
+Sim, para cada série por temporada ainda é possível identificar a tendência de subida nos ratings atribuídos aos episódios. E mais, dentro de uma mesma série como Narcos, as temporadas possuem diferentes "curvas", por exemplo, a segunda temporada teve uma crescente nos ratings dos episódios ao longo da temporada maior que na primeira.
+
+A resposta para a pergunta inicial é de que **os episódios mais bem avaliados se encontram no final das temporadas**. Além disso foi encontrada uma tendência linear de subida nos ratings dos episódios dentro de uma temporada.
+
+Agora que a pergunta foi respondida, é possível imaginar se também é observada uma tendência de subida na série como um todo. **Ou seja, Ao longo de toda a série, o rating dos episódios tende a subir?** (Pergunta derivada)
+
+```{r}
+series_netflix %>%
+  ggplot(aes(series_ep, UserRating, color = series_name)) +
+  geom_smooth(method = "lm") +
+  geom_point() +
+  facet_wrap(~series_name) +
+  labs(x = "Número do episódio na Série", y = "Nota do episódio") +
+  guides(color = FALSE)
 ```
 
-TODO: Ranking dos episodios melhores avaliados
-series_selected %>%
-  ggplot(aes(season_ep, UserRating)) +
-  geom_smooth(method = "lm") +
-  geom_jitter(width = .2) +
-  facet_wrap(~series_name)
+Sim, ao longo das temporadas em todas as séries é possível perceber que há uma melhora na avaliação dos episódios finais (lançados por último) do que em relação aos iniciais, apesar de haver exceções nas quais episódios se destacam com relação aos da mesma temporada. Adotando o critério mostrado nas visualizações acima, é possível considerar que as Séries Originais Netflix melhoram com o tempo. Sense8 é o exemplo mais claro disso.
 
+### EXTRA: TOP 5 dos episódios mais bem avaliados
+
+Por fim apresentamos os cinco episódios com notas mais altas dentre as séries analisadas. Quatro (1, 3, 4, 5) deles acontecem nos finais de suas respectivas temporadas, e três (1, 4, 5) deles acontecem nos últimos episódios lançados e avaliados da série.
+
+```{r}
+kable(x = head(arrange(series_netflix, desc(UserRating)) %>%
+        select(series_name, Episode, UserRating, season), 5),
+      col.names = c('Série', 'Episódio', 'Nota', 'Temporada'))
+```
+
+Até a próxima análise !!!
+    
+    
 
 
 
