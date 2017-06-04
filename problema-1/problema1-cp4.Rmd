@@ -1,6 +1,7 @@
 ---
 title: "Análise de dados sobre séries"
 author: "Gileade Kelvin"
+subtitle: "Problema 1 - Checkpoint 4"
 date: "26 de maio de 2017"
 output: html_document
 ---
