@@ -9,10 +9,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align=
 ```
 
 ```{r}
-#library(tidyverse)
-library(dplyr)
-library(readr)
-library(purrr)
+library(tidyverse)
 library(knitr)
 library(htmltools)
 library(highcharter)
@@ -43,9 +40,9 @@ map(levels(series_netflix$series_name), function(x){
     hc_yAxis(title = list(text = "Nota do episódio"), tickInterval = .2, min = 7.5, max = 9.7) %>%
     hc_tooltip(pointFormat = "Nome: {point.Episode} <br> Nota: {point.y} <br> Número de Votos: {point.UserVotes}") %>%
     hc_legend(title = list(text = "Temporada"), align = "right", verticalAlign = "top",
-            layout = "vertical", x = 0, y = 100)
+            layout = "vertical", x = 0, y = 50)
   }) %>% 
-  hw_grid(ncol = 2)  %>% browsable()
+  hw_grid(rowheight = 220, ncol = 2)  %>% browsable()
 ```
 
     
@@ -61,7 +58,7 @@ Outras informações podem ser retiradas ao interagir com a visualização como 
 
 Através da visualização é possível explorar sobre os episódios das séries originais Netflix selecionadas e materializar como é a evolução da avaliação dos episódios conforme a temporada vai avançando. É possível observar tendências de subidas em algumas séries e maior variação (picos, altos e baixos em episódios vizinhos, maior amplitude) em outras.
 
-Espero que você possa ter tido outros insights sobre a análise e até a próxima!!!
+Espero que você possa ter tido outros insights legais sobre a análise e até a próxima!!!
 
 
 
