@@ -25,20 +25,29 @@ shinyServer(function(input, output) {
   output$plot <- renderUI({
   
     if (!is.null(input$series)){
-    map(input$series, function(x){
-      series.imdb %>%
-        filter(series_name == x) %>%
-        filter(findInterval(season, input$seasons, rightmost.closed = TRUE) == 1L) %>%
-        hchart("line", hcaes(x = series_ep, y = UserRating, group = season)) %>%
-        hc_add_theme(hc_theme_smpl()) %>% 
-        hc_title(text = x) %>%
-        hc_xAxis(title = list(text = "Número do episódio"), tickInterval = 2) %>%
-        hc_yAxis(title = list(text = "Nota do episódio"), tickInterval = .5, min = 5, max = 10) %>%
-        hc_tooltip(pointFormat = "Nome: {point.Episode} <br> Nota: {point.y} <br> Número de Votos: {point.UserVotes}") %>%
-        hc_legend(title = list(text = "Temporada"), align = "right", verticalAlign = "top",
-                  layout = "vertical", x = 0, y = 50)
-    }) %>% 
-      hw_grid(ncol = 2)  %>% browsable()
+      minimo <- min(series.imdb %>%
+                      filter(series_name %in% input$series) %>%
+                      filter(findInterval(season, input$seasons, rightmost.closed = TRUE) == 1L) %>%
+                      select(UserRating))
+      
+      maximo <- max(series.imdb %>%
+                      filter(series_name %in% input$series) %>%
+                      filter(findInterval(season, input$seasons, rightmost.closed = TRUE) == 1L) %>%
+                      select(UserRating))  
+      map(input$series, function(x){
+        series.imdb %>%
+          filter(series_name == x) %>%
+          filter(findInterval(season, input$seasons, rightmost.closed = TRUE) == 1L) %>%
+          hchart("line", hcaes(x = series_ep, y = UserRating, group = season)) %>%
+          hc_add_theme(hc_theme_smpl()) %>% 
+          hc_title(text = x) %>%
+          hc_xAxis(title = list(text = "Número do episódio"), tickInterval = 2) %>%
+          hc_yAxis(title = list(text = "Nota do episódio"), tickInterval = .5, min = minimo, max = maximo) %>%
+          hc_tooltip(pointFormat = "Nome: {point.Episode} <br> Nota: {point.y} <br> Número de Votos: {point.UserVotes}") %>%
+          hc_legend(title = list(text = "Temporada"), align = "right", verticalAlign = "top",
+                    layout = "vertical", x = 0, y = 50)
+      }) %>% 
+        hw_grid(ncol = 2)  %>% browsable()
     }
       
       #plot_ly(x = ~series_ep, y = ~UserRating, color = ~season,  type = 'scatter', mode = 'lines') %>%
