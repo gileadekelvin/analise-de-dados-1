@@ -12,6 +12,7 @@ library(dplyr)
 library(plotly)
 library(highcharter)
 library(purrr)
+library(htmltools)
 
 series.imdb <- read.csv("series_from_imdb.csv", stringsAsFactors = FALSE)
 

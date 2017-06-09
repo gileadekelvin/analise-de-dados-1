@@ -1,0 +1,11 @@
+name: minha-serie-e-a-melhor
+title: minha-serie-e-a-melhor
+account: gileadekelvin
+server: shinyapps.io
+appId: 187454
+bundleId: 859225
+url: https://gileadekelvin.shinyapps.io/minha-serie-e-a-melhor/
+when: 1496973588.58997
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: server.R|ui.R

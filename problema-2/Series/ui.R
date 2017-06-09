@@ -18,8 +18,8 @@ series.imdb <- series.imdb %>%
   mutate(season = factor(season))
 
 # Define UI for application that draws a histogram
-shinyUI(fluidPage(
-  
+shinyUI(
+  fluidPage(
   # Application title
   titlePanel("Old Faithful Geyser Data"),
   
