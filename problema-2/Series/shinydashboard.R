@@ -17,6 +17,7 @@ ui <- dashboardPage(
   dashboardSidebar(width = 250, sidebarMenu( 
     menuItem("Dashboard", tabName = "dashboard", icon = icon("dashboard")),
     sliderInput("size", "Altura da visualizações", min = 200, max = 700, value = 300),
+    menuItem("Dicas", tabName = "tips", icon = icon("question")), 
     menuItem("Info", tabName = "info", icon = icon("info")), 
     menuItem("Comments", tabName = "disqus_here", icon = icon("comments"))
     
@@ -33,7 +34,8 @@ ui <- dashboardPage(
             title = "Entradas", status = "warning",
             selectInput("series", "Série(s):",
                         levels(series.imdb$series_name),
-                        multiple = TRUE
+                        multiple = TRUE,
+                        selected = c("Breaking Bad", "Game of Thrones")
             ),
             sliderInput("seasons", "Temporadas",
                         min = 1, max = 23, value = c(1,2))
@@ -43,20 +45,56 @@ ui <- dashboardPage(
             title = "Comparação", status = "primary",
             htmlOutput("plot")
             
+          ),
+          
+          box(width = 4,
+            title = "Minha série é a melhor!", status = "primary", solidHeader = TRUE,
+            collapsible = TRUE,
+            "Você já teve alguma discussão com um amigo(a) seu sobre como sua série favorita é melhor que a dele?", br(), 
+            "Agora você pode comparar as séries e provar que a sua é realmente melhor.", br(),
+            "Você pode comparar várias séries e temporadas para mais informações acesse info."
+          ),
+          
+          box(width = 4,
+              title = "Análise", status = "primary", solidHeader = TRUE,
+              collapsible = TRUE,
+              "Se escolhermos as duas primeiras temporadas de Breaking Bad (BB) e Game of Thrones (GOT) para comparar, podemos perceber que a maioria dos episódios de GOT tem avaliação melhor que os de BB.", br(), 
+              "Ao compararmos o formato das linhas podemos notar que GOT tem um crescimento maior nas notas dos episódios conforme as temporadas avançam.", br(),
+              "Os penúltimos episódios, com exceção da segunda temporada de BB, são melhores que os últimos espisódios de suas respectivas temporadas.", br(),
+              "Quer saber se isso acontece em outras temporadas também? Adicione mais temporadas a visualização e confira!"
           )
           
-          
+          #end fluidpage
         )
       ),
       
+      tabItem(tabName = "tips",
+              column(width = 12,
+                     valueBox(width = 4,
+                              tagList("mais de 500 séries", tags$sup(style="font-size: 20px")),
+                              "É possível pesquisar pelo nome (em inglês).", icon = icon("line-chart"), color = "blue"
+                     ),
+                     valueBox(width = 4,
+                              tagList("Altura", tags$sup(style="font-size: 20px")),
+                              "Ajuste a altura dos gráficos pelo controle no menu sidebar.", icon = icon("sliders"), color = "orange"
+                     ),
+                     valueBox(width = 4,
+                              tagList("Temporadas", tags$sup(style="font-size: 20px")),
+                              "Escolha qual o intervalo de temporadas no controle em Entradas.", icon = icon("sliders"), color = "blue"
+                     )
+              )
+      ),
+      
       tabItem(tabName = "info",
-              box(
+              box(width = 4,
                 title = "Dados", status = "primary",
-                "A fonte dos dados é o IMDB, um banco de dados online com informação sobre música, filmes, séries, cinema, jogos, programas e comerciais de TV, atualmente percente a Amazon. ", br()
+                "A fonte dos dados é o IMDB, um banco de dados online com informação sobre música, filmes, séries, cinema, jogos, programas e comerciais de TV, atualmente percente a Amazon. ", br(),
+                "Os dados foram obtidos aqui: github.com/nazareno/imdb-series"
               ),
-              box(
+              box(width = 4,
                 title = "Sobre", status = "warning",
                 "Essa aplicação foi desenvolvida por Gileade Kelvin durante a disciplina de Análise de Dados 1 - UFCG.", br())
+              
       ), 
       
       tabItem(tabName = "disqus_here",
@@ -113,8 +151,7 @@ server <- function(input, output) {
         hw_grid(rowheight = input$size, ncol = 2)  %>% browsable()
     }
     
-    
-    
+   
   })
   
   }
