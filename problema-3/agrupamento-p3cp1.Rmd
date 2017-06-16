@@ -1,0 +1,108 @@
+---
+title: "Agrupamento"
+author: "Gileade Kelvin"
+date: "16 de junho de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="center")
+```
+
+```{r}
+library(dplyr)
+library(rvest)
+library(tibble)
+library(ggplot2)
+library(ggdendro)
+```
+
+## Função para plotar possbilibidades de agrupamento
+```{r}
+plota_hclusts_2d = function(agrupamento,
+                            dados_filme,
+                            nome_colunas, # coluna usada para distâncias
+                            dist_method = "euclidean", 
+                            linkage_method = "complete", 
+                            ks = 1:9){
+    #' Retorna um ggplot das soluções de agrupamento de `dados_filme` 
+    #' para as quantidades de grupos em `ks` usando `hclust`.
+    library(ggplot2)
+    library(dplyr, warn.conflicts = F)
+    
+    atribuicoes = tibble(k = ks) %>% 
+        group_by(k) %>% 
+        do(cbind(filmes, 
+                 grupo = as.character(cutree(agrupamento, .$k)))) 
+    
+    atribuicoes %>% 
+        ggplot(aes_string(x = nome_colunas[1], y = nome_colunas[2], colour = "grupo")) + 
+        geom_jitter(width = .02, height = 0, size = 2, alpha = .6) + 
+        facet_wrap(~ paste(k, " grupos")) + 
+        xlab("") %>% 
+        return()
+}
+```
+
+## Obtenção dos filmes
+```{r}
+from_page <- read_html("https://www.rottentomatoes.com/celebrity/samuel_l_jackson/") %>% 
+    html_node("#filmographyTbl") %>% # A sintaxe da expressão é de um seletor à lá JQuery: https://rdrr.io/cran/rvest/man/htmhttps://www.rottentomatoes.com/celebrity/denzel_washington/l_nodes.html 
+    html_table(fill=TRUE) %>% # Faz parse
+    as.tibble()
+
+filmes = from_page %>% 
+    filter(RATING != "No Score Yet", 
+           `BOX OFFICE` != "—", 
+           CREDIT != "Executive Producer") %>%
+    mutate(RATING = as.numeric(gsub("%", "", RATING)), 
+           `BOX OFFICE` = as.numeric(gsub("[$|M]", "", `BOX OFFICE`))) %>% 
+    filter(`BOX OFFICE` >= 1) # Tem dois filmes que não parecem ter sido lançados no mundo todo
+```
+
+## Visualização das duas variáveis
+```{r}
+filmes %>%
+  ggplot(aes(RATING, `BOX OFFICE`)) +
+  geom_jitter(width = .1)
+
+```
+
+## Agrupamento
+```{r}
+agrupamento_h_2d = filmes %>% 
+    column_to_rownames("TITLE") %>%
+    select(RATING, `BOX OFFICE`) %>% 
+    mutate(`BOX OFFICE` = log10(`BOX OFFICE`)) %>%
+    mutate_all(funs(scale)) %>% 
+    dist(method = "euclidean") %>% 
+    hclust(method = "centroid")
+```
+
+```{r}
+ggdendrogram(agrupamento_h_2d, rotate = TRUE)
+```
+
+```{r}
+filmes2 = filmes %>% mutate(`BOX OFFICE` = log10(`BOX OFFICE`))
+
+plota_hclusts_2d(agrupamento_h_2d, 
+                 filmes2, 
+                 c("RATING", "`BOX OFFICE`"), 
+                 linkage_method = "centroid", ks = 1:9) + scale_y_log10()
+```
+
+## Silhouette
+```{r}
+distancias = filmes %>% 
+    column_to_rownames("TITLE") %>%
+    select(RATING, `BOX OFFICE`) %>% 
+    mutate(`BOX OFFICE` = log10(`BOX OFFICE`)) %>% 
+    mutate_all(funs(scale)) %>% 
+    dist(method = "euclidean")
+
+plot(silhouette(cutree(agrupamento_h_2d, k = 4), distancias))
+```
+
+
+
