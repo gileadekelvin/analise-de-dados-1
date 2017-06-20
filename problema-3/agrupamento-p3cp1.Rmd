@@ -7,7 +7,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.align="center")
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="center")
 ```
 
 ```{r}
@@ -23,36 +23,9 @@ theme_set(theme_minimal())
 library(RColorBrewer)
 ```
 
-```{r echo=FALSE}
-plota_hclusts_2d = function(agrupamento,
-                            dados_filme,
-                            nome_colunas, # coluna usada para distâncias
-                            dist_method = "euclidean", 
-                            linkage_method = "complete", 
-                            ks = 1:9){
-    #' Retorna um ggplot das soluções de agrupamento de `dados_filme` 
-    #' para as quantidades de grupos em `ks` usando `hclust`.
-    library(ggplot2)
-    library(dplyr, warn.conflicts = F)
-    
-    atribuicoes = tibble(k = ks) %>% 
-        group_by(k) %>% 
-        do(cbind(filmes, 
-                 grupo = as.character(cutree(agrupamento, .$k)))) 
-    
-    atribuicoes %>% 
-        ggplot(aes_string(x = nome_colunas[1], y = nome_colunas[2], colour = "grupo")) + 
-        geom_jitter(width = .02, height = 0, size = 2, alpha = .6) + 
-        facet_wrap(~ paste(k, " grupos")) + 
-        xlab("") +
-        scale_color_brewer(palette='Set2') %>% 
-        return()
-}
-```
-
 ## Conjunto de dados
 
-Na análise de hoje buscaremos identificar quais os grupos de filmes do ator **Christian Bale** nos quais filmes de um mesmo grupo tem características semelhantes entre si mas que diferem de outros grupos.
+Na análise de hoje buscaremos identificar quais os grupos de filmes do ator **Christian Bale**. Os grupos serão definidos quanto filmes de um mesmo grupo tem características semelhantes entre si mas que diferem de outros grupos.
 
 Iremos utilizar os dados do Rotten Tomatoes, site conhecido mundialmente por seus reviews de filmes e pelo **tomatômetro** que é uma medida de 0 a 100 do nível de frescor ou podridão do tomate/filme. Foram coletados 20 filmes com informações sobre BOX OFFICE e RATING(Tomatômetro).
 
@@ -88,7 +61,7 @@ p2 <- filmes %>%
 
 grid.arrange(p1, p2, ncol=2)
 ```
-Na primeira visualização vemos a maioria dos filmes de Bale tem bons indíces no tomatômetro embora ainda existam alguns que não são tão bons assim. Na segunda visualização percebemos que a maioria dos filmes encontra-se entre 0 e 200 milhões de dólares no Box Office.
+Na primeira visualização vemos a maioria dos filmes de Bale tem bons indíces no tomatômetro embora ainda existam alguns que não são tão bons assim. Na segunda visualização percebemos que a maioria dos filmes encontra-se entre 0 e 200 milhões de dólares no Box Office e apenas dois filmes ultrapassam os 400 milhões de dólares.
 
 ```{r}
 filmes %>%
@@ -105,6 +78,8 @@ Acima podemos observar que não existem uma correlaçao linear clara entre as du
 
 Agora que conhecemos as variáveis e quais são alguns filmes que Christian Bale participou vamos agrupá-los da melhor forma de modo que que filmes parecidos entre si fiquem em um mesmo grupo e que esses grupos sejam diferentes entre si.
 
+A técnica para o agrupamento usada é o agrupamento hierárquico, no qual na variável BOX OFFICE foi aplicada o log de 10, uma vez não estamos interessados nas diferenças absolutas das rendas dos filmes. Além disso, as duas variáveis foram padronizadas para uma mesma escala e com a mesma unidade (desvios-padrão). O método de distância utilizado foi o euclidean e o de agrupamento foi o ward.D.
+
 ```{r}
 agrupamento_h_2d = filmes %>% 
     column_to_rownames("TITLE") %>%
@@ -113,6 +88,35 @@ agrupamento_h_2d = filmes %>%
     mutate_all(funs(scale)) %>% 
     dist(method = "euclidean") %>% 
     hclust(method = "ward.D")
+```
+
+A função abaixo é responsável por plotar várias visualizações com n grupos diferentes.
+```{r}
+plota_hclusts_2d = function(agrupamento,
+                            dados_filme,
+                            nome_colunas, # coluna usada para distâncias
+                            dist_method = "euclidean", 
+                            linkage_method = "complete", 
+                            ks = 1:9){
+    #' Retorna um ggplot das soluções de agrupamento de `dados_filme` 
+    #' para as quantidades de grupos em `ks` usando `hclust`.
+    library(ggplot2)
+    library(dplyr, warn.conflicts = F)
+    
+    atribuicoes = tibble(k = ks) %>% 
+        group_by(k) %>% 
+        do(cbind(filmes, 
+                 grupo = as.character(cutree(agrupamento, .$k)))) 
+    
+    atribuicoes %>% 
+        ggplot(aes_string(x = nome_colunas[1], y = nome_colunas[2], colour = "grupo")) + 
+        geom_jitter(width = .02, height = 0, size = 2, alpha = .6) + 
+        facet_wrap(~ paste(k, " grupos")) + 
+        xlab("") +
+        ylab("Box Office (log 10)") +
+        scale_color_brewer(palette='Set2') %>% 
+        return()
+}
 ```
 
 ### Escolha dos grupos
@@ -126,7 +130,7 @@ plota_hclusts_2d(agrupamento_h_2d,
                  c("RATING", "`BOX OFFICE`"), 
                  linkage_method = "ward.D", ks = 1:8) + scale_y_log10()
 ```
-Estamos visualizando a variável Box Office em escala de log pois não estamos interessados no valor absolluto da bilheteria em si mas na grandeza do quanto ela cresce com relação a outros filmes. 
+Estamos visualizando a variável Box Office em escala de log pois não estamos interessados no valor absoluto da bilheteria em si mas na grandeza do quanto ela cresce com relação a outros filmes. 
 
 Optamos por escolher a divisão em 4 grupos por estar em conformidade com a ideia inicial ao observarmos o gráfico de dispersão dos filmes. Mais tarde vamos explorar melhor esses 4 grupos.
 
@@ -166,25 +170,26 @@ filmes_hclust %>%
     hc_add_theme(hc_theme_smpl()) %>% 
     hc_title(text = "Rating vs Box Office", align = "center") %>%
     hc_xAxis(title = list(text = "Rating (tomatômetro)")) %>%
-    hc_yAxis(title = list(text = "Box Office em Milhões de dólares")) %>%
+    hc_yAxis(title = list(text = "Box Office (log 10)")) %>%
     hc_tooltip(pointFormat = "{point.TITLE} <br> Rating: {point.x} <br> Box Office: {point.boxoffice} <br> Ano: {point.YEAR}")%>%
     hc_legend(title = list(text = "Grupo"), align = "right", verticalAlign = "top",
             layout = "vertical", x = 0, y = 50)
 ```
 
-#### Grupo 1 - Medianos
+*Você está visualizando o eixo y (Box office) na escala de log 10 e não na escala original. Para saber o valor na escala original basta passar o mouse sobre o ponto.*
+
+#### Grupo 1 - Os Medianos
 Esse é o grupo dos filmes que possuem o tomatômetro próximo a 50 %, ou seja não são frescos mas também não são podres. Em geral, os filmes desse grupo não obtiveram o sucesso desejado no BOX OFFICE como o esperado por seus produtores. Por exemplo, The New World teve um orçamento de 30 milhões de dólares mas só arrecadou nos EUA 12.5 milhões.
 
 #### Grupo 2 - Os Grandes Sucessos
 Nesse grupo estão presentes os filmes com maior bilheteria da carreira de Christian Bale, como A trilogia Batman e também os filmes mais aclamados pela crítica segundo o indíce do tomatômetro. Um filme bastante em que Bale é bastante conhecido por sua atuação brilhante é The Fighter, filme em que vive um irmão mais velho de um pugilista de boxe. Filme muito bom por sinal :).
 
-#### Grupo 3 - 
-
-#### Grupo 4 - Fracassos
-Nesse grupo estão presentes filmes com baixa taxa de aprovação no Rotten Tomatoes e que também não obtiveram alta bilheteria nos EUA. Como exemplo temos: xXx - State of the Union e The Spirit, filmes que tiveram orçamento maior que o arrecadado no BOX OFFICE.
+#### Grupo 3 - Os Criticados famosos
+Os integrantes desse grupo obtiveram altos índices de bilheteria mas não foram bem avaliados segundo o tomatômetro. Terminator Salvation é um exemplo disso, como é um filme da franquia **Terminator** (Exterminador do futuro) um grande hype havia na época, o que justifica a alta bilheteria embora o filme seja criticado até os dias de hoje, inclusive pelo próprio Arnold Schwarzenegger. 
 
 
+#### Grupo 4 - Os ótimos menores
+Aqui estão presentes os filmes de arrecadaram relativamente pouco se comparado a outros filmes do ator, mas que obtiveram ótimos índices de aprovação no Rotten Tomatoes. Rescue Dawn, que conta a história de um piloto americano que é capturado por inimigos durante a Guerra do Vietnã é um exemplo de filme com um "baixo" mas que é excelente.
 
-
-
-
+**Essa foi a análise de hoje. Até a próxima !!!**
+   
