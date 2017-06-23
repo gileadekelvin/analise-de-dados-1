@@ -1,0 +1,46 @@
+---
+title: "Problema 3 - Checkpoint 2"
+author: "Gileade Kelvin"
+date: "23 de junho de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="center")
+```
+
+```{r}
+library(dplyr)
+library(readr)
+library(tidyr)
+```
+
+
+```{r}
+dados <- read_csv("meta_data7.csv")
+characters <- read_csv("character_list5.csv")
+```
+
+```{r}
+personagens_filmes <- dados %>%
+  left_join(characters) %>%
+  select(c(script_id, title, year, gross, imdb_character_name, words, gender, age)) %>%
+  filter(!is.na(gross), gender != "?")
+```
+
+```{r}
+filmes <- personagens_filmes %>%
+  group_by(title, gender) %>%
+  summarise(tot_gender = n(),
+            tot_gender_words = sum(words))
+
+filmes <- filmes %>%
+  mutate(gender_copy = gender) %>%
+  spread(gender_copy, tot_gender_words, fill = 0) %>%
+  spread(gender, tot_gender, fill = 0)
+  
+```
+
+
+
+
