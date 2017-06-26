@@ -15,10 +15,9 @@ library(readr)
 library(tidyr)
 ```
 
-
 ```{r}
-dados <- read_csv("meta_data7.csv")
-characters <- read_csv("character_list5.csv")
+dados <- read.csv("meta_data7.csv", encoding  = "latin1")
+characters <- read.csv("character_list5.csv", encoding  = "latin1")
 ```
 
 ```{r}
@@ -29,18 +28,130 @@ personagens_filmes <- dados %>%
 ```
 
 ```{r}
-filmes <- personagens_filmes %>%
-  group_by(title, gender) %>%
+filmes_summ <- personagens_filmes %>%
+  group_by(script_id, gender) %>%
   summarise(tot_gender = n(),
             tot_gender_words = sum(words))
-
-filmes <- filmes %>%
-  mutate(gender_copy = gender) %>%
-  spread(gender_copy, tot_gender_words, fill = 0) %>%
-  spread(gender, tot_gender, fill = 0)
-  
 ```
 
+```{r}
+filmes_words <- filmes_summ %>%
+  spread(gender, tot_gender_words, fill = 0) %>%
+  group_by(script_id) %>%
+  summarise(fem_words = sum(f),
+            mal_words = sum(m))
+
+filmes_charc <- filmes_summ %>%
+  spread(gender, tot_gender, fill = 0) %>%
+  group_by(script_id) %>%
+  summarise(fem_charc = sum(f),
+            mal_charc = sum(m))
+
+```
+
+```{r}
+filmes <- filmes_charc %>%
+  inner_join(filmes_words, by = "script_id")
+```
+
+```{r}
+filmes <- filmes %>%
+  mutate(total_words = fem_words + mal_words,
+         total_charc = fem_charc + mal_charc) %>%
+  mutate(fem_words = fem_words/total_words,
+         mal_words = mal_words/total_words,
+         fem_charc = fem_charc/total_charc,
+         mal_charc = mal_charc/total_charc)
+```
+
+```{r}
+filmes.alt <- filmes %>%
+  mutate(balance_words = fem_words / mal_words,
+         balance_charc = fem_charc / mal_charc) %>%
+  select(c(script_id, balance_words, balance_charc))
+```
+
+```{r}
+filmes.year.gross <- personagens_filmes %>%
+  distinct(script_id, title, year, gross)
+
+filmes.final <- filmes.year.gross %>%
+  left_join(filmes.alt, by = "script_id") %>%
+  select(-script_id)
+```
+
+```{r}
+rm(characters, dados, filmes, filmes_charc, filmes_summ, filmes_words, filmes.alt, filmes.year.gross, personagens_filmes)
+```
+
+```{r}
+#filmes.final <- filmes_r
+```
+
+```{r}
+filmes.final <- filmes.final %>%
+  mutate(year = year - (year %% 10)) %>%
+  select(-c(mal_charc, mal_words, fem_charc))
+```
+
+```{r}
+filmes.log <- filmes.final %>%
+  #filter(is.finite(balance_words)) %>%
+  mutate_each(funs(log(. + 1)), -c(title))
+```
+
+```{r}
+filmes.scaled <- filmes.final %>%
+  #filter(is.finite(balance_words)) %>%
+  mutate_each(funs(scale(.) %>% c), 2:6)
+```
+
+```{r}
+km = filmes.scaled %>% 
+    select(-title) %>% 
+    kmeans(centers = 4, nstart = 20)
+```
+
+```{r}
+library(ggplot2)
+library(ggfortify)
+autoplot(km, data = filmes.scaled)
+```
+
+```{r}
+library(cluster)
+dists <- dist(select(filmes.scaled, -c(title)), method = 'euclidean')
+plot(silhouette(km$cluster, dists), border = NA, main = 'Silhueta dos grupos usando o K-means')
+```
+
+
+```{r}
+filmes.km <- filmes.scaled %>%
+  mutate(cluster = km$cluster %>% as.factor)
+
+filmes.km.long <- filmes.km %>%
+  gather('variable', 'value', -title, -cluster, factor_key=T)
+```
+
+```{r}
+ggplot(filmes.km.long, aes(x = variable, y = value, colour = variable)) +
+  geom_boxplot() +
+  geom_hline(alpha = 0.3, yintercept = 0) + 
+  geom_point(alpha = 0.2, position = position_jitter(width = .2)) +
+  facet_wrap(~ cluster, ncol = 3) +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  labs(title = 'Agrupamento de licitantes de merenda da Paraíba', x = '', y = '') +
+  scale_color_brewer(palette='Dark2')
+```
+
+
+## Variáveis consideradas
+
+- época (year)
+- gross (receita bruta)
+- porcentagem de personagens femininos / porcentagem de personagens masculinos
+- porcentagem de falas femininas / porcentagem de falas masculinas
 
 
 
