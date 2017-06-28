@@ -98,9 +98,9 @@ rm(characters, dados, filmes, filmes_charc, filmes_summ, filmes_words, filmes.ye
 ## Variáveis escolhidas
 Para o agrupamento final decidi escolher usar as variáveis: 
 **Renda Bruta (Gross):** valor bruto da bilheteria arrecadada pelo filme.
-**Total de palavras:** total de palavras ditas por todos os personagens do filme.
-**Total de personagens:** total de personagens do filme.
-**Porcetagem de falas femininas:** Porcentagens de falas do filme que são de personagens femininas. 
+**Total de palavras (total_words):** total de palavras ditas por todos os personagens do filme.
+**Total de personagens (total_charc):** total de personagens do filme.
+**Porcetagem de falas femininas (fem_words):** Porcentagens de falas do filme que são de personagens femininas. 
 
 ```{r}
 filmes.agrupamento <- filmes.final %>%
@@ -207,7 +207,7 @@ ggplot(filmes.km.long, aes(x = variable, y = value, colour = variable)) +
   theme(axis.text.x=element_blank(),
         axis.ticks.x=element_blank()) +
   labs(title = 'Agrupamento de filmes', x = '', y = '', color = "Variável") +
-  scale_color_brewer(palette='Set2')
+  scale_color_brewer(palette='Dark2')
 ```
 Aqui é possível identificar os grupos e como as variáveis se comportam em cada grupo.
 
@@ -218,7 +218,7 @@ Quando comparamos esse grupo com os demais notamos que em todas as variáveis, e
 Nesse grupo se sobressaem os filmes que mais obtiveram "sucesso" nas bilheterias considerando a renda bruta. Com relação as outras variáveis estes filmes se mantêm na média dos outros filmes da base de dados. Alguns exemplos dos maiores sucessos são: Star Wars: Episode IV - A New Hope, Titanic, Avatar, The Jungle Book, The Lion King, The Avengers, Forrest Gump, The Lord of the Rings: The Return of the King dentre outros filmes considerados "blockbusters" e que arrecadaram acima da média dos outros grupos.
 
 #### Grupo 3 - Os textuais numerosos
-Esse é o grupo dos filmes que possue o número total de palavras e o número total de personagens acima da média. Alguns exemplos mais conhecidos desse grupo são The Dark Knight, Se7en, The Wolf of Wall Street, The Godfather: Part II, que são filmes longos e com muitos personagens o que faz sentido uma vez que tais variáveis foram os motivos pelos quais esses filmes ficaram em um mesmo grupo.
+Esse é o grupo dos filmes que possui o número total de palavras e o número total de personagens acima da média. Alguns exemplos mais conhecidos desse grupo são The Dark Knight, Se7en, The Wolf of Wall Street, The Godfather: Part II, que são filmes longos e com muitos personagens o que faz sentido uma vez que tais variáveis foram os motivos pelos quais esses filmes ficaram em um mesmo grupo.
 
 #### Grupo 4 - Girl Power
 Esse é o grupo mais interessante formado. Nele estão presentes os filmes nos quais a média da razão número de palavras de personagens femininas pelo total de palavras é superior ao encontrado nos demais grupos. Ou seja, nesses filmes as mulheres falam mais. Cuidado! Não estou dizendo que nesses filmes as mulheres falam de forma igual aos homens, apenas que neles as mulheres falam mais do que nos demais filmes da base de dados. Dentre alguns exemplos conhecidos temos Wild, Carrie, It Follows, Lucy, Pan's Labyrinth, Begin Again e o meu favorito dessa lista: **Her**. Um filme que fala sobre relacionamentos, sobre amor, sobre a mente humana e sobre o que nos define enquanto humanos, o filme tem dois protagonistas, um homem e uma mulher, no entanto Ela tem mais falas que Ele.
@@ -226,22 +226,18 @@ Esse é o grupo mais interessante formado. Nele estão presentes os filmes nos q
 Esses foram os grupos que encontrei durante a análise espero que tenha gostado e já visto alguns filmes citados aqui.
 
 Abaixo podemos visualizar como cada filme, aqui representado por uma linha, se comporta mediante as 4 variáveis, separados por grupo.
-```{r fig.width=3, fig.height=3, fig.align="center"}
-library(plotly)
 
-p1 <- ggplot(filmes.km.long, aes(x = variable, y = value, group = title, colour = cluster)) +
+```{r}
+ggplot(filmes.km.long, aes(x = variable, y = value, group = title, colour = cluster)) +
   geom_point(alpha = 0.2) +
   geom_line(alpha = .3) +
   facet_wrap(~ cluster, ncol = 2) +
   theme(axis.text.x = element_text(angle = 20, hjust = 1)) +
   labs(x= '', y = '', colour = "Grupos") +
   scale_color_brewer(palette='Set2') 
-
-ggplotly(p1) %>%
-  layout(autosize = T)
 ```
 
-É possível com essa visualização acima identificar alguns filmes presentes nos grupos como também alguns outliers em cada grupo. Pelo formato do comportamento das linhas fica claro como cada grupo tem filmes com características diferentes.
+É possível com essa visualização acima observar que existem alguns filmes que são diferentes dos demais filmes do mesmo grupo. Pelo formato do comportamento das linhas fica claro como cada grupo tem filmes com características diferentes. O formato da linha que liga as 4 variáveis nos mostra como cada filme se comporta em seus respectivos grupos.
 
 ```{r}
 library(highcharter)
@@ -259,8 +255,24 @@ filmes.agrupamento %>%
 
 Nessa visualização acima é possível identificar quais filmes pertencem a cada grupo. Também é possível observar que não existem filmes com mais de 70 % de falas sendo femininas com mais de 500 milhões de dólares, o que chega mais perto é Sleeping Beauty. No tempo em que essa análise está sendo feita Wonder Woman (Mulher Maravilha) acaba de se tornar um dos maiores sucessos de bilheteria de filmes protagonizados por mulheres.
 
-O tamanho das bolhas nesse gráfico é o número de personagens que um filme tem. Explore a visualização e tente encontrar filmes que você conhece e descubra informações sobre ele considerando as variáveis estudadas nessa análise.
+O eixo x é a porcentagem de falas femininas com relação ao total de falas do filme, o eixo y é a renda bruta do filme em milhões de dólares, o tamanho das bolhas nesse gráfico é o número de personagens que um filme tem e a cor é o grupo no qual o filme está. Explore a visualização e tente encontrar filmes que você conhece e descubra informações sobre ele considerando as variáveis estudadas nessa análise.
 
 Por hoje é só, até a próxima análise !!!
-    
-    
+
+## EXTRA!    
+```{r}
+filmes.final %>%
+  mutate(cluster = km$cluster) %>%
+  group_by(year, cluster) %>%
+  summarise(fem_words = median(fem_words)) %>%
+  mutate(fem_words_round = round(fem_words, digits = 2) * 100) %>%
+  hchart("line", hcaes(x = year, y = fem_words_round, group = cluster)) %>%
+      hc_add_theme(hc_theme_smpl()) %>% 
+      hc_title(text = "Porcentagem de falas femininas ao longo dos anos por grupo", align = "center") %>%
+      hc_xAxis(title = list(text = "Ano"), tickInterval = 1) %>%
+      hc_yAxis(title = list(text = "% de falas femininas")) %>%
+      hc_tooltip(pointFormat = "Ano: {point.x} <br> % de falas femininas: {point.y}") %>%
+      hc_legend(title = list(text = "Grupo"), align = "right", verticalAlign = "top",
+              layout = "vertical", x = 0, y = 50)
+```
+Essa visualização nos mostra como ao longo dos anos a mediana da porcentagem de falas de personagens femininas nos filmes se comportou por grupo. É clara a diferença do grupo **Girl Power (4)** com relação aos demais. Explore a visualização e conheça mais sobre os grupos dos filmes descritos nessa análise. Até mais!
