@@ -1,0 +1,230 @@
+---
+title: "Agrupamento de filmes - Uma visão diferente"
+author: "Gileade Kelvin"
+date: "14 de julho de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="center")
+```
+
+```{r}
+library(dplyr)
+library(readr)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+library(ggfortify)
+library(cluster)
+library(RColorBrewer)
+theme_set(theme_minimal())
+```
+
+# Sobre os dados
+Nesse relatório iremos trabalhar com os dados de filmes que contêm informações sobre a renda bruta do filme, falas de personagens por gênero e outras variáveis. Os dados estão disponíveis [aqui](https://github.com/matthewfdaniels/scripts).
+
+```{r}
+dados <- read.csv("meta_data7.csv", encoding  = "latin1")
+characters <- read.csv("character_list5.csv", encoding  = "latin1")
+```
+
+A princípio utilizaremos as duas bases de dados disponíveis. A primeira delas contém informações sobre os filmes que iremos estudar. As principais são o ano, a renda bruta na bilheteria (gross) além do título do filme. A segunda base de dados contém informações sobre os personagens de cada filme como o número de palavras ditas no filme, a idade e o gênero. 
+
+```{r}
+personagens_filmes <- dados %>%
+  left_join(characters) %>%
+  select(c(script_id, title, year, gross, imdb_character_name, words, gender, age)) %>%
+  filter(!is.na(gross), gender != "?")
+```
+
+Filtramos os filmes que não possuem o valor bruto da bilheteria informado e que também não possuem o valor do gênero.
+
+```{r}
+filmes_summ <- personagens_filmes %>%
+  group_by(script_id, gender) %>%
+  summarise(tot_gender = n(),
+    tot_gender_words = sum(words))
+```
+
+Em seguida, sumarizamos quantas palavras foram ditas por gênero e quantos personagens cada filme tem por gênero.
+
+```{r}
+filmes_words <- filmes_summ %>%
+   spread(gender, tot_gender_words, fill = 0) %>%
+   group_by(script_id) %>%
+   summarise(fem_words = sum(f),
+             mal_words = sum(m))
+ 
+ filmes_charc <- filmes_summ %>%
+   spread(gender, tot_gender, fill = 0) %>%
+   group_by(script_id) %>%
+   summarise(fem_charc = sum(f),
+             mal_charc = sum(m))
+```
+
+```{r}
+filmes <- filmes_charc %>%
+  inner_join(filmes_words, by = "script_id")
+```
+
+A seguir buscamos identficar a porcentagem de palavras ditas por gênero diante do total de palavras do filme.
+
+```{r}
+filmes <- filmes %>%
+  mutate(total_words = fem_words + mal_words,
+          total_charc = fem_charc + mal_charc) %>%
+  mutate(fem_words = fem_words/total_words,
+          mal_words = mal_words/total_words,
+          fem_charc = fem_charc/total_charc,
+          mal_charc = mal_charc/total_charc)
+```
+
+Aqui obtemos as informações de renda bruta (gross) e do título do filme.
+
+```{r}
+filmes.year.gross <- personagens_filmes %>%
+  distinct(script_id, title, year, gross)
+
+filmes.final <- filmes.year.gross %>%
+  left_join(filmes, by = "script_id") %>%
+  select(-script_id)
+```
+
+```{r}
+rm(characters, dados, filmes, filmes_charc, filmes_summ, filmes_words, filmes.year.gross, personagens_filmes)
+```
+
+## Variáveis escolhidas
+Para o agrupamento final decidi escolher usar as variáveis: 
+**Renda Bruta (Gross):** valor bruto da bilheteria arrecadada pelo filme.
+**Total de palavras (total_words):** total de palavras ditas por todos os personagens do filme.
+**Total de personagens (total_charc):** total de personagens do filme.
+**Porcetagem de falas femininas (fem_words):** Porcentagens de falas do filme que são de personagens femininas. 
+
+```{r}
+filmes.agrupamento <- filmes.final %>%
+  select(-c(mal_charc, mal_words, fem_charc, year))
+```
+
+A seguir vamos entender melhor como cada variável se comporta nos dados.
+
+```{r}
+p1 <- filmes.agrupamento %>%
+  ggplot(aes(x = gross)) +
+  geom_histogram(binwidth = 50, fill = "#E65100") +
+  labs(x = "Renda Bruta (milhões de dólares)", y = "Número de filmes")
+
+p2 <- filmes.agrupamento %>%
+  ggplot(aes(x = total_words)) +
+  geom_histogram(binwidth = 500, fill = "#E65100") +
+  labs(x = "Total de palavras", y = "Número de filmes")
+
+p3 <- filmes.agrupamento %>%
+  ggplot(aes(x = total_charc)) +
+  geom_histogram(binwidth = 1, fill = "#E65100") +
+  labs(x = "Total de personagens", y = "Número de filmes")
+
+p4 <-  filmes.agrupamento %>%
+  ggplot(aes(x = fem_words)) +
+  geom_histogram(binwidth = .1, fill = "#E65100") +
+  labs(x = "Porcentagem de falas femininas", y = "Número de filmes")
+
+grid.arrange(p1, p2, p3, p4, ncol=2)
+```
+Nos histogramas acima notamos uma distribuição enviesada para a direita (assimétrica positiva) em praticamente todas as variáveis escolhidas, o que pode indicar que a média dessas variáveis é maior que a mediana.
+
+```{r}
+library(GGally, quietly = TRUE)
+ggpairs(select(filmes.agrupamento, -title))
+```
+
+# Agrupamento
+O nosso objetivo com essa análise é obter grupos, considerando as 4 variáveis escolhidas, que façam sentido. Em seguida iremos rotular esses grupos e obter exemplos de filmes de cada grupo. 
+
+A técnica utilizada para o agrupamento será o k-means. O k-means é um dos algoritmos mais usados para agrupamento e para usá-lo k-means é necessário definir a quantidade de grupos que devem ser formados e os critérios para que elementos sejam agrupados.
+
+Aplicamos a escala de logaritmo aos dados com o intuito de não considerar os valores absolutos das observações mas sim a grandeza de tais valores.
+```{r}
+filmes.log <- filmes.agrupamento %>%
+  mutate_each(funs(log(. + 1)), -c(title))
+```
+
+```{r}
+ggpairs(select(filmes.log, -title))
+```
+
+Com o objetivo de padronizar as variáveis de forma que cada uma tenha o mesmo "poder" de influência na formação dos grupos, resolvi aplicar a função de scale.
+```{r}
+filmes.scaled <- filmes.agrupamento %>%
+  mutate_each(funs(scale(.) %>% c), 2:5)
+```
+
+```{r}
+set.seed(12346)
+
+km = filmes.scaled %>% 
+    select(-title) %>% 
+    kmeans(centers = 4, nstart = 20)
+
+dists <- dist(select(filmes.scaled, -c(title)), method = 'euclidean')
+```
+
+```{r}
+autoplot(km, data = filmes.scaled) +
+  scale_color_brewer(palette = 'Set2')
+```
+
+Acima utilizamos uma técnica de PCA para poder visualizar os grupos consideramos as 4 variáveis "condensadas" em apenas duas (PC1, PC2). Novamente, como já falado aqui, existem filmes que ficam nas bordas dos grupos o que faz com que os mesmo não se encaixem em nenhum grupo perfeitamente.
+
+# PCA
+
+```{r}
+filmes.agrupamento <- filmes.agrupamento %>%
+  mutate(cluster = km$cluster)
+```
+
+```{r}
+library(tibble)
+filmes_pca = filmes.scaled %>% 
+    select(-title) %>%
+    prcomp(scale = FALSE) 
+```
+
+```{r}
+library(broom)
+au <- augment(filmes_pca, data = filmes.agrupamento)
+
+```
+
+```{r}
+library(highcharter)
+au %>% 
+    mutate(fem_words_round = round(fem_words, digits = 2) * 100) %>%
+    hchart("scatter", hcaes(x = .fittedPC1, y = .fittedPC2, group = cluster)) %>%
+    hc_add_theme(hc_theme_smpl()) %>% 
+    hc_title(text = "Grupos em 2 dimensões", align = "center") %>%
+    hc_xAxis(title = list(text = "PC1")) %>%
+    hc_yAxis(title = list(text = "PC2")) %>%
+    hc_tooltip(pointFormat = "<b>{point.title}</b><br>
+            Renda: {point.gross} <br> 
+            Total de palavras: {point.total_words} <br> 
+            Total de personagens: {point.total_charc} <br> 
+            % falas femininas: {point.fem_words_round}") %>%
+   hc_legend(title = list(text = "Grupo"), align = "right", verticalAlign = "top",
+              layout = "vertical", x = 0, y = 50)
+```
+
+```{r}
+autoplot(filmes_pca, label = F, label.size = 3, shape = T, 
+         colour = filmes.agrupamento$cluster,
+         loadings = TRUE, loadings.colour = 'darkorange',
+         loadings.label = TRUE, 
+         loadings.label.size = 3) +
+  scale_color_brewer(palette='Set2') 
+
+```
+
+
+
+
