@@ -18,7 +18,12 @@ library(gridExtra)
 library(ggfortify)
 library(cluster)
 library(RColorBrewer)
+library(GGally, quietly = TRUE)
+library(tibble)
+library(broom)
+library(highcharter)
 theme_set(theme_minimal())
+
 ```
 
 # Sobre os dados
@@ -135,12 +140,13 @@ grid.arrange(p1, p2, p3, p4, ncol=2)
 Nos histogramas acima notamos uma distribuição enviesada para a direita (assimétrica positiva) em praticamente todas as variáveis escolhidas, o que pode indicar que a média dessas variáveis é maior que a mediana.
 
 ```{r}
-library(GGally, quietly = TRUE)
 ggpairs(select(filmes.agrupamento, -title))
 ```
 
+Acima é possível observar como as variáveis estão correlacionadas entre si e como é a distribuição dos filmes considerando os pares de variáveis. Nota-se que grande parte das observações se concentram no início dos eixos x nos histogramas. Para uma melhor visualização, considerando as variações de magnitude ao invés da variação absoluta será aplicado as dados a escala de logaritmo.
+
 # Agrupamento
-O nosso objetivo com essa análise é obter grupos, considerando as 4 variáveis escolhidas, que façam sentido. Em seguida iremos rotular esses grupos e obter exemplos de filmes de cada grupo. 
+O nosso objetivo com essa análise é obter grupos, considerando as 4 variáveis escolhidas, que façam sentido. Em seguida iremos rotular esses grupos.
 
 A técnica utilizada para o agrupamento será o k-means. O k-means é um dos algoritmos mais usados para agrupamento e para usá-lo k-means é necessário definir a quantidade de grupos que devem ser formados e os critérios para que elementos sejam agrupados.
 
@@ -153,6 +159,8 @@ filmes.log <- filmes.agrupamento %>%
 ```{r}
 ggpairs(select(filmes.log, -title))
 ```
+
+Como esperado a escala de log espalha as observações de forma que é possível observar os pontos de forma mais clara e com o objetivo de entender as grandes diferenças entre as variáveis mas também as pequenas diferenças.
 
 Com o objetivo de padronizar as variáveis de forma que cada uma tenha o mesmo "poder" de influência na formação dos grupos, resolvi aplicar a função de scale.
 ```{r}
@@ -170,14 +178,9 @@ km = filmes.scaled %>%
 dists <- dist(select(filmes.scaled, -c(title)), method = 'euclidean')
 ```
 
-```{r}
-autoplot(km, data = filmes.scaled) +
-  scale_color_brewer(palette = 'Set2')
-```
-
-Acima utilizamos uma técnica de PCA para poder visualizar os grupos consideramos as 4 variáveis "condensadas" em apenas duas (PC1, PC2). Novamente, como já falado aqui, existem filmes que ficam nas bordas dos grupos o que faz com que os mesmo não se encaixem em nenhum grupo perfeitamente.
-
 # PCA
+
+Nós, seres humanos, conseguimos entender visualizações com mais precisão até duas dimensões. Sabendo disso, o interesse desse relatório é apresentar uma visualização 2D que consiga capturar informações sobre os grupos resultantes do que foi feito [nesse relatório](https://gileadekelvin.github.io/portfolio//2017/07/kmeans-p3cp2.html).
 
 ```{r}
 filmes.agrupamento <- filmes.agrupamento %>%
@@ -185,20 +188,18 @@ filmes.agrupamento <- filmes.agrupamento %>%
 ```
 
 ```{r}
-library(tibble)
 filmes_pca = filmes.scaled %>% 
     select(-title) %>%
     prcomp(scale = FALSE) 
 ```
 
 ```{r}
-library(broom)
 au <- augment(filmes_pca, data = filmes.agrupamento)
-
 ```
 
+Segundo a Wikipedia, PCA é um procedimento matemático que utiliza uma transformação ortogonal (ortogonalização de vetores) para converter um conjunto de observações de variáveis possivelmente correlacionadas num conjunto de valores de variáveis linearmente não correlacionadas chamadas de componentes principais.
+
 ```{r}
-library(highcharter)
 au %>% 
     mutate(fem_words_round = round(fem_words, digits = 2) * 100) %>%
     hchart("scatter", hcaes(x = .fittedPC1, y = .fittedPC2, group = cluster)) %>%
@@ -215,16 +216,47 @@ au %>%
               layout = "vertical", x = 0, y = 50)
 ```
 
+Acima, reduzimos as 4 variáveis/dimensões a apenas 2, e o resultado mostra como os grupos são distintos. Os grupos apresentados podem ser descritos como:
+
+#### Grupo 1 - Quase medianos
+Quando comparamos esse grupo com os demais notamos que em todas as variáveis, existem uma proximidade com a média do encontrado nos dados. Ou seja, esse é o conjunto dos filmes em que nenhuma variável se sobressai sobre as demais e torna o grupo marcado por essa variável.
+
+#### Grupo 2 - Os Sucessos
+Nesse grupo se sobressaem os filmes que mais obtiveram "sucesso" nas bilheterias considerando a renda bruta. Com relação as outras variáveis estes filmes se mantêm na média dos outros filmes da base de dados. Alguns exemplos dos maiores sucessos são: Star Wars: Episode IV - A New Hope e Titanic.
+
+#### Grupo 3 - Os textuais numerosos
+Esse é o grupo dos filmes que possui o número total de palavras e o número total de personagens acima da média. Alguns exemplos mais conhecidos desse grupo são The Dark Knight, Se7en, The Wolf of Wall Street e The Godfather: Part II.
+
+#### Grupo 4 - Girl Power
+Esse é o grupo mais interessante formado. Nele estão presentes os filmes nos quais a média da razão número de palavras de personagens femininas pelo total de palavras é superior ao encontrado nos demais grupos. Ou seja, nesses filmes as mulheres falam mais. Cuidado! Não estou dizendo que nesses filmes as mulheres falam de forma igual aos homens, apenas que neles as mulheres falam mais do que nos demais filmes da base de dados. Dentre alguns exemplos conhecidos temos Wild, Carrie, It Follows, Lucy, Pan's Labyrinth, Begin Again e o meu favorito dessa lista: **Her**.
+
+
 ```{r}
-autoplot(filmes_pca, label = F, label.size = 3, shape = T, 
-         colour = filmes.agrupamento$cluster,
-         loadings = TRUE, loadings.colour = 'darkorange',
+autoplot(km, data = filmes.scaled, loadings = TRUE, loadings.colour = 'darkred',
          loadings.label = TRUE, 
          loadings.label.size = 3) +
-  scale_color_brewer(palette='Set2') 
+  scale_color_brewer(palette = 'Set2')
 
 ```
 
+Aqui é possível observar os vetores que indicam como as duas variáveis (PC1 e PC2) condensam as 4 variáveis escolhidas. Conforme a descrição dos grupos é possível identificar no grupo 4 os filmes que possuem a maior porcentagem de falas femininas e no grupo 3 os filmes com maior número de falas e personagens.
+
+Os eixos indicam como os filmes se comportam com relação as quatro variáveis. É possível notar que existem pontos que se destacam com relação a outros por estarem distantes do "ponto de origem" que condensa a maior parte das observações. Por exemplo, Casino e JFK se destacam pela quantidade alta de palavras e personagens, e estão no canto mais extremo a direita do gráfico para onde crescem as variáveis de total_words e total_charc. Dentre os filmes que mais possuem falas femininas se destacam Now and Then, The Descent e Precious.
 
 
+## O quão bem os dados estão representados em duas dimensões?
+Agora que já observamos o quão legal é o PCA e como é útil usá-lo para uma *visão diferente*, vamos observar o quão representativo é visualizar 4 dimensões em apenas 2. Para começar queremos deixar claro que a redução de dimensionalidade faz com que a variÂncia dos dados não seja representada em sua totalidade. Abaixo podemos visualizar essa perda com mais clareza.
 
+```{r}
+tidy(filmes_pca, "pcs")
+
+tidy(filmes_pca, "pcs") %>% 
+    ggplot(aes(x = PC, y = cumulative, label = cumulative)) + 
+    geom_line() + 
+    geom_point() + 
+    geom_text(vjust = 1, hjust = -.1)
+```
+
+Como apontado acima com 2 dimensões cerca de 65% da variância dos dados é representada nas visualizações utilizando 2 dimensões. Claro que o ideal seria com 4 dimensões e 100% da variância, entretanto é mais fácil para o ser humano entender em duas dimensões e por isso utiliza-se o PCA.
+
+Espero que tenha gostado e até a próxima análise !!!
