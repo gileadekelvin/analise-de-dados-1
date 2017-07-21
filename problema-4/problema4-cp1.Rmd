@@ -1,0 +1,39 @@
+---
+title: "Github - Linguagens e uso"
+author: "Gileade Kelvin"
+date: "21 de julho de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="center")
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+theme_set(theme_bw())
+```
+
+```{r}
+dados.github <- read.csv("github-users-committing-filetypes.csv")
+```
+
+```{r}
+dados.github %>%
+  group_by(file_extension) %>%
+  summarise(total = n()) %>%
+  ggplot(aes(x = file_extension, y = total)) +
+  geom_bar(stat = "identity") +
+  coord_flip()
+```
+
+```{r}
+dados.selected <- dados.github %>%
+  filter(file_extension == "java" | file_extension == "go")
+```
+
+```{r}
+
+```
+
