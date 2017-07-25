@@ -11,29 +11,199 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="
 
 ```{r}
 library(dplyr)
+library(tidyr)
+library(xts)
+library(tibble)
+library(highcharter)
 library(ggplot2)
-theme_set(theme_bw())
+library(resample)
+theme_set(theme_light())
 ```
+
+## Sobre os dados
+Os dados obtidos nessa análise consistem numa amostra de dados da atividade global do github. Os dados contém a contagem de quantas pessoas editaram arquivos com cada extensão de arquivo em cada dia de 2016 e 2017 no github. Para reforçar, estamos trabalhando com uma **amostra** dos dados.
 
 ```{r}
 dados.github <- read.csv("github-users-committing-filetypes.csv")
 ```
 
-```{r}
-dados.github %>%
-  group_by(file_extension) %>%
-  summarise(total = n()) %>%
-  ggplot(aes(x = file_extension, y = total)) +
-  geom_bar(stat = "identity") +
-  coord_flip()
-```
-
+Inicialmente estamos interessados em analisar duas linguagens de programação e as selecionadas foram **Java**, uma linguagem que já conheço e já trabalhei com ela em vários projetos na universidade (UFCG) e Go uma linguagem recente criada pela Google em 2009 que vem ganhando evidência nos últimos anos e que eu pretendo aprender qualquer dia desses :).
 ```{r}
 dados.selected <- dados.github %>%
   filter(file_extension == "java" | file_extension == "go")
 ```
 
-```{r}
+### Conhecendo os dados
+Como falado acima temos informações sobre quantos usuários editaram um arquivo de Janeiro de 2016 até Maio de 2017. Trataremos nessa análise de duas linguagens de programação em especial, Java e Go.
 
+#### Java
+É uma linguagem de programação orientada a objetos desenvolvida na década de 90 e amplamente conhecida no mundo todo. Abaixo verificamos a série temporal de usuários no github editando arquivos .java no github.
+
+```{r}
+dados.java <- dados.selected %>%
+  filter(file_extension == "java") %>%
+  unite("date", the_year, the_month, month_day, sep = "-") %>%
+  mutate(date = as.Date(strptime(date, "%Y-%m-%d"))) %>%
+  select(-file_extension)
+
+dados.java.stock <- dados.java %>%
+  remove_rownames %>% 
+  column_to_rownames(var="date")
+
+dados.java.stock.xts <- as.xts(dados.java.stock)
 ```
 
+```{r}
+highchart(type = "stock") %>% 
+  hc_title(text = "Java - Atividade Global no Github") %>% 
+  hc_subtitle(text = "Número de usuários que editaram arquivos java no github") %>% 
+  hc_add_series(dados.java.stock.xts, id = "java", name = "Java") 
+```
+É possível verificar que existe quedas e subidas durante todo o período apresentado. Ou seja, a interação de programadores java oscila. Ao aproximarmos o zoom para o nível de mês (opção 1m) é possível observar que as quedas são de geralmente dois dias e acontecem praticamente todas as semanas. Há uma suspeita de que esses dias sejam justamente no fim de semana, no qual a carga de trabalho e estudo é, em geral, menor.
+
+#### Go
+É uma linguagem de programação criada pela Google e lançada em código livre. É uma linguagem compilada e focada em produtividade e programação concorrente.
+
+```{r}
+dados.go <- dados.selected %>%
+  filter(file_extension == "go") %>%
+  unite("date", the_year, the_month, month_day, sep = "-") %>%
+  mutate(date = as.Date(strptime(date, "%Y-%m-%d"))) %>%
+  select(-file_extension)
+  
+dados.go.stock <- dados.go %>%
+  remove_rownames %>% 
+  column_to_rownames(var="date")
+
+dados.go.stock.xts <- as.xts(dados.go.stock)
+```
+
+```{r}
+highchart(type = "stock") %>% 
+  hc_title(text = "Go - Atividade Global no Github") %>% 
+  hc_subtitle(text = "Número de usuários que editaram arquivos go no github") %>% 
+  hc_add_series(dados.go.stock.xts, id = "go", name = "Go")
+```
+Assim como em Java, Go possui oscilações ao longo de todo o período. As oscilações pararam um pouco no período compreendido entre julho e agosto de 2016. 
+
+Comparando as duas séries temporais temos:
+
+```{r}
+data_flags <- data_frame(
+  date = as.Date("2016-12-25"),
+  title = "Natal",
+  text = "A queda do número de usuários nessa época do ano <br> parece ter como causa as festas de final de ano"
+)
+
+highchart(type = "stock") %>% 
+  hc_title(text = "Java e Go - Comparação") %>% 
+  hc_subtitle(text = "Série temporal comparando número de usuários que editaram arquivos das linguagens") %>% 
+  hc_add_series(dados.java.stock.xts,  id = "java", name = "Java") %>%
+  hc_add_series(dados.go.stock.xts, id = "go", name = "Go") %>%
+  hc_add_series(data_flags, hcaes(x = date), type = "flags", onSeries = "java")
+  
+```
+Como era de se esperar, existem mais pessoas programando em Java do que em Go, uma vez que Java é uma linguagem mundialmente conhecida, consolidada e utilizada tanto academica quanto profissionalmente. Além disso as oscilações em Java parecem ser maiores (no sentido da diferença entre dias vizinhos) do que em Go.
+
+Agora que já conhecemos nossos dados iremos responder a duas perguntas sobre os programadores dessas duas linguagens.
+
+## Pergunta 1
+
+**Para cada uma dessas linguagens, há uma diferença significativa na sua popularidade durante a semana e durante o fim de semana? Essa diferença é grande?**
+
+Para responder essa pergunta iremos determinar o intervalo de confiança para conseguirmos concluir algo sobre a diferença entre o grau de atividade dos programadores no meio de semana e no fim de semana. A medida estatística que utilizaremos será a mediana.
+
+```{r}
+library(chron)
+```
+
+Para Java, aqui verificamos se a data em cada observação está no final de semana ou não.
+```{r}
+dados.java <- dados.java %>%
+  mutate(fds = is.weekend(date))
+```
+
+```{r}
+dados.java %>%
+  ggplot(aes(x = fds, y = users)) +
+  geom_jitter(width = .1, color = "#488888") +
+  labs(title = "Atividade de usuários Java", x = "Fim de semana", y = "Usuários") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+É possível observar uma diferença entre os commits de arquivos java no fim de semana e durante a semana. Em geral, no meio da semana existem mais usuários programando em java do que no sábado e domingo.
+
+Contudo só observar essa visualização não responde a pergunta com confiança uma vez que estamos observando acima apenas uma amostra e não o total. Usaremos a seguir uma técnica chamada bootstrap para coletar informações da amostra de forma que possamos determinar um intervalo de confiança do valor da diferença de atividade de programadores java no fim de semana e no meio de semana.
+
+```{r}
+median.java <- bootstrap2(dados.java$users,
+                          treatment = dados.java$fds,
+                          median,
+                          R = 10000)
+
+median.java.ci <- CI.percentile(median.java, probs = c(.025, .975))
+
+data.frame(median.java.ci) %>% 
+  ggplot() + 
+  geom_errorbar(aes(x = "Diferença", ymin = X2.5., ymax = X97.5.), width = .2) + 
+  geom_hline(yintercept = 0, colour = "darkorange")
+```
+
+A diferença para esse caso é não pareada pois temos datas diferentes para meio de semana e fim de semana e número de observações diferentes também. 
+
+A visualização acima mostra que com 95% de confiança a diferença das medianas entre a atividade de programadores java no Github do meio de semana para o fim de semana está no intervalo entre `r median.java.ci`. Ou seja, é possível dizer que java é uma linguagem muito mais usada no meio de semana do que no final de semana. E a diferença para esse uso está dentro desse intervalo, com 95% de confiança. Esse número pode ser considerado alto se levarmos em consideração que as observações diárias de commits de programadores java raramente ultrapassa 4 mil usuários por dia. Ou seja, a diferença é relevante e a significância é que com 95% de confiança a verdadeira diferença das medianas de arquivos java editados da população está no intervalo mostrado acima.
+
+A técnica de bootstrap, na qual n (nesse caso 10000) vezes a partir da amostra é gerada uma nova amostra com reposição e a partir dessas novas amostras é possível obter informações da diferença das medianas entre java no fim de semana e no meio da semana.
+
+Para Go, repetiremos o mesmo processo.
+
+```{r}
+dados.go <- dados.go %>%
+  mutate(fds = is.weekend(date))
+```
+
+```{r}
+dados.go %>%
+  ggplot(aes(x = fds, y = users)) +
+  geom_jitter(width = .1, color = "#488888") +
+  labs(title = "Atividade de usuários Go", x = "Fim de semana", y = "Usuários") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+Assim como em Java, Go também apresenta uma diferença visível de atividade entre o meio de semana e o final de semana. Como trata-se de uma amostra é preciso usar a inferência para poder dizer algo sobre a população e para isso utilizamos, novamente, bootstrap e intervalo de confiança.
+
+```{r}
+median.go <- bootstrap2(dados.go$users,
+                          treatment = dados.go$fds,
+                          median,
+                          R = 10000)
+
+median.go.ci <- CI.percentile(median.go, probs = c(.025, .975))
+
+data.frame(median.go.ci) %>% 
+  ggplot(aes(x = "Diferença", ymin = X2.5., ymax = X97.5.))+ 
+  geom_errorbar(width = .2) + 
+  geom_hline(yintercept = 0, colour = "darkorange")
+
+```
+Para Go a diferença das medianas de atividade entre o meio e o fim de semana, com 95% de confiança está no intervalo entre `r median.go.ci`. Essa diferença das medianas entre meio e fim de semana é relevante dentro do contexto de programadores go, uma vez que o número de usuários que programam atingem um valor máximo próximo a 1000 em um dia. Portanto, é possível com 95 % de confiança a diferença da mediana de atividade em arquivos go no meio para o fim de semana da população dos usuários do github está no intervalo mostrado acima, e essa diferença é relevante dentro do contexto de programadores Go.
+
+## Pergunta 2
+
+**Existe uma diferença significativa entre as duas linguagens na sua variação de popularidade nos finais de semana?**
+
+Aqui estaremos analisando duas amostras diferentes e portanto não há pareamento. Utilizaremos a técnica de bootstrap e em seguida determinaremos o intervalo de confiança para a diferença da medianas de atividade no github entre programadores java e go apenas no fim de semana.
+```{r}
+median.diff <- bootstrap2(data = (dados.java %>% filter(fds == TRUE))$users, 
+               data2 = (dados.go %>% filter(fds == TRUE))$users,
+               median)
+median.diff.ci = CI.percentile(median.diff, probs = c(.025, .975))
+
+data.frame(median.diff.ci) %>% 
+  ggplot(aes(x = "Diferença", ymin = X2.5., ymax = X97.5.)) + 
+  geom_errorbar(width = .2) + 
+  geom_hline(yintercept = 0, colour = "darkorange")
+```
+O critério utilizado para responder a pergunta foi determinar qual a diferença entre os programadores java e go no final de semana, será que uma linguagem é mais ativa no fim de semana do que a outra? E ainda, qual seria essa diferença?
+
+A medida estatística utilizada foi a mediana, portanto estamos interessados em obter a diferença das medianas de usuários que editaram arquivos java e go nos finais de semana de janeiro de 2016 até maio de 2017.
+
+Com 95% de confiança a diferença da medianas está no intervalo `r median.diff.ci`. Ou seja, a diferença é relevante e mostra que existem mais usuários ativos no final de semana programando em java do que em go.
