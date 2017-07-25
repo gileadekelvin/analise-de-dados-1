@@ -111,7 +111,7 @@ Agora que já conhecemos nossos dados iremos responder a duas perguntas sobre os
 
 **Para cada uma dessas linguagens, há uma diferença significativa na sua popularidade durante a semana e durante o fim de semana? Essa diferença é grande?**
 
-Para responder essa pergunta iremos determinar o intervalo de confiança para conseguirmos concluir algo sobre a diferença entre o grau de atividade dos programadores no meio de semana e no fim de semana. A medida estatística que utilizaremos será a mediana.
+Para responder essa pergunta iremos determinar o intervalo de confiança para conseguirmos concluir algo sobre a diferença entre o grau de atividade dos programadores no meio de semana e no fim de semana. A medida estatística que utilizaremos será a mediana. Iremos responder a pergunta para as duas lingaugens de forma individual.
 
 ```{r}
 library(chron)
@@ -168,7 +168,7 @@ dados.go %>%
   labs(title = "Atividade de usuários Go", x = "Fim de semana", y = "Usuários") +
   theme(plot.title = element_text(hjust = 0.5))
 ```
-Assim como em Java, Go também apresenta uma diferença visível de atividade entre o meio de semana e o final de semana. Como trata-se de uma amostra é preciso usar a inferência para poder dizer algo sobre a população e para isso utilizamos, novamente, bootstrap e intervalo de confiança.
+Go apresenta uma diferença visível de atividade entre o meio de semana e o final de semana. Como trata-se de uma amostra é preciso usar a inferência para poder dizer algo sobre a população e para isso utilizamos, novamente, bootstrap e intervalo de confiança.
 
 ```{r}
 median.go <- bootstrap2(dados.go$users,
@@ -194,7 +194,7 @@ Aqui estaremos analisando duas amostras diferentes e portanto não há pareament
 ```{r}
 median.diff <- bootstrap2(data = (dados.java %>% filter(fds == TRUE))$users, 
                data2 = (dados.go %>% filter(fds == TRUE))$users,
-               median)
+               sd)
 median.diff.ci = CI.percentile(median.diff, probs = c(.025, .975))
 
 data.frame(median.diff.ci) %>% 
@@ -202,8 +202,9 @@ data.frame(median.diff.ci) %>%
   geom_errorbar(width = .2) + 
   geom_hline(yintercept = 0, colour = "darkorange")
 ```
-O critério utilizado para responder a pergunta foi determinar qual a diferença entre os programadores java e go no final de semana, será que uma linguagem é mais ativa no fim de semana do que a outra? E ainda, qual seria essa diferença?
+O critério utilizado para responder a pergunta foi de comparar entre as duas lingaugens, considerando apenas os fins de semana, qual delas tem maior variação na popularidade (entre os próprios fins de semana). 
 
-A medida estatística utilizada foi a mediana, portanto estamos interessados em obter a diferença das medianas de usuários que editaram arquivos java e go nos finais de semana de janeiro de 2016 até maio de 2017.
+A medida estatística utilizada foi o desvio padrão, portanto estamos interessados em obter os desvios padrões para cada linguagem em cada fim de semana presente nos dados e qual a diferença entre esses desvios padrões entre Java e Go.
 
-Com 95% de confiança a diferença da medianas está no intervalo `r median.diff.ci`. Ou seja, a diferença é relevante e mostra que existem mais usuários ativos no final de semana programando em java do que em go.
+Com 95% de confiança a diferença do desvio padrão está no intervalo `r median.diff.ci`. Ou seja, é possível afirmar que existe uma maior variação nos finais de semana entre programadores java do que em programadores go.
+
