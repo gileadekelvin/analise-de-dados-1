@@ -1,0 +1,125 @@
+---
+title: "Github - atividade de usuários"
+author: "Gileade Kelvin"
+date: "28 de julho de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="center")
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(xts)
+library(tibble)
+library(highcharter)
+library(ggplot2)
+library(resample)
+theme_set(theme_light())
+```
+
+## Sobre os dados
+Os dados obtidos nessa análise consistem numa amostra de dados da atividade global do github. Os dados contém a contagem de quantas pessoas editaram arquivos com cada extensão de arquivo em cada dia de 2016 e 2017 no github. Para reforçar, estamos trabalhando com uma **amostra** dos dados.
+
+```{r}
+dados.github <- read.csv("github-users-committing-filetypes.csv")
+```
+
+```{r}
+dados.github.summ <- dados.github %>%
+  unite("date", the_year, the_month, month_day, sep = "-") %>%
+  mutate(date = as.Date(strptime(date, "%Y-%m-%d"))) %>%
+  group_by(date) %>%
+  summarise(total = sum(users))
+```
+
+```{r}
+dados.summ.stock <- dados.github.summ %>%
+  remove_rownames %>% 
+  column_to_rownames(var="date")
+
+dados.summ.stock.xts <- as.xts(dados.summ.stock)
+```
+
+```{r}
+highchart(type = "stock") %>% 
+  hc_title(text = "Atividade Global no Github") %>% 
+  hc_subtitle(text = "Número de usuários que editaram arquivos no github") %>% 
+  hc_add_series(dados.summ.stock.xts, id = "git", name = "Git") 
+```
+
+Acima podemos observar a série temporal da atividade global do github durante o período disponível na amostra. É interessante notar um certo padrão na série, há altos e baixos com certa frequência e a linha parece uma onda ao longo do período. Há uma suspeita de que os **vales** sejam os fins de semana e os **picos** no meio de semana. Outra curiosidade interessante está nos considerados **feriados mundiais** como Natal e Ano novo, é clara a diferença de atividade nessas datas com relação aos demais dias do ano.
+
+## Pergunta 1
+
+**Segunda e sexta têm popularidade menor que terça, quarta e quinta?**
+
+Para responder a essa pergunta iremos considerar os cinco dias da semana e separá-los em dois grupos. Grupo 1 (Extremidades da semana) como segunda e sexta e o Grupo 2 (meio do meio da semana) como terça, quarta e quinta.
+
+```{r}
+library("lubridate")
+
+dados.github.summ <- dados.github.summ %>%
+  mutate(day_of_week = wday(date))
+
+dados.github.extr <- dados.github.summ %>%
+  filter(!day_of_week %in% c(1, 7)) %>%
+  mutate(isEXT = day_of_week %in% c(2, 6))
+```
+
+```{r}
+dados.github.extr %>%
+  ggplot(aes(x = isEXT, y = total)) +
+  geom_jitter(width = .1, color = "#488888") +
+  labs(title = "Atividade de usuários na Segunda e Sexta e em outros dias da semana", x = "é Segunda e Sexta", y = "Usuários") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+median.dados.extr <- bootstrap2(dados.github.extr$total,
+                          treatment = dados.github.extr$isEXT,
+                          median,
+                          R = 30000)
+
+median.dados.extr.ci <- CI.percentile(median.dados.extr, probs = c(.025, .975))
+
+data.frame(median.dados.extr.ci) %>% 
+  ggplot() + 
+  geom_errorbar(aes(x = "Diferença", ymin = X2.5., ymax = X97.5.), width = .2) + 
+  geom_hline(yintercept = 0, colour = "darkorange")
+```
+
+## Pergunta derivada
+**Entre a segunda e sexta existe uma diferença significativa de popularidade?**
+
+```{r}
+dados.github.segsex <- dados.github.summ %>%
+  filter(day_of_week %in% c(2, 6)) %>%
+  mutate(isSEX = day_of_week %in% c(6))
+```
+
+```{r}
+dados.github.segsex %>%
+  ggplot(aes(x = isSEX, y = total)) +
+  geom_jitter(width = .1, color = "#488888") +
+  labs(title = "Atividade de usuários na Sexta(TRUE) e na Segunda(FALSE)", x = "é Segunda e Sexta", y = "Usuários") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+median.dados.segsex <- bootstrap2(dados.github.segsex$total,
+                          treatment = dados.github.segsex$isSEX,
+                          median,
+                          R = 30000)
+
+median.dados.segsex.ci <- CI.percentile(median.dados.segsex, probs = c(.025, .975))
+
+data.frame(median.dados.segsex.ci) %>% 
+  ggplot() + 
+  geom_errorbar(aes(x = "Diferença", ymin = X2.5., ymax = X97.5.), width = .2) + 
+  geom_hline(yintercept = 0, colour = "darkorange")
+```
+
+
