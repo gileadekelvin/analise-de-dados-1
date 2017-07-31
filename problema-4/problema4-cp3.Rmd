@@ -1,5 +1,5 @@
 ---
-title: "Github - atividade de usuários"
+title: "Github - Atividade de usuários"
 author: "Gileade Kelvin"
 date: "28 de julho de 2017"
 output: html_document
@@ -17,6 +17,7 @@ library(tibble)
 library(highcharter)
 library(ggplot2)
 library(resample)
+library(chron)
 theme_set(theme_light())
 ```
 
@@ -50,7 +51,7 @@ highchart(type = "stock") %>%
   hc_add_series(dados.summ.stock.xts, id = "git", name = "Git") 
 ```
 
-Acima podemos observar a série temporal da atividade global do github durante o período disponível na amostra. É interessante notar um certo padrão na série, há altos e baixos com certa frequência e a linha parece uma onda ao longo do período. Há uma suspeita de que os **vales** sejam os fins de semana e os **picos** no meio de semana. Outra curiosidade interessante está nos considerados **feriados mundiais** como Natal e Ano novo, é clara a diferença de atividade nessas datas com relação aos demais dias do ano.
+Acima podemos observar a série temporal da atividade global do github durante o período disponível na amostra. É interessante notar um certo padrão na série, há altos e baixos com certa frequência e a linha parece uma onda ao longo do período. Há uma suspeita de que os **vales** sejam os fins de semana e os **picos** ou as **cristas** da "onda"  sejam no meio de semana. Outra curiosidade interessante está nos considerados **feriados** que possuem escala mundial como Natal e Ano novo, é clara a diferença de atividade nessas datas com relação aos demais dias do ano.
 
 ## Pergunta 1
 
@@ -70,12 +71,16 @@ dados.github.extr <- dados.github.summ %>%
 ```
 
 ```{r}
+set.seed(123)
 dados.github.extr %>%
   ggplot(aes(x = isEXT, y = total)) +
   geom_jitter(width = .1, color = "#488888") +
-  labs(title = "Atividade de usuários na Segunda e Sexta e em outros dias da semana", x = "é Segunda e Sexta", y = "Usuários") +
+  labs(title = "Atividade de usuários na Segunda e Sexta e em outros dias da semana", x = "Dias da semana", y = "Usuários") +
+  scale_x_discrete(labels= c("Terça, quarta, quinta", "Segunda, sexta")) +
   theme(plot.title = element_text(hjust = 0.5))
 ```
+
+Não parece haver uma diferença clara entre o grupo dos dias, mas precisamos investigar de forma mais objetiva antes de fazer alguma conclusão apenas no olho. Perceba que nossos olhos talvez não consigam perceber grandes diferenças por conta da escala. Para isso usaremos bootstrap e intervalo de confiança.
 
 ```{r}
 median.dados.extr <- bootstrap2(dados.github.extr$total,
@@ -91,7 +96,11 @@ data.frame(median.dados.extr.ci) %>%
   geom_hline(yintercept = 0, colour = "darkorange")
 ```
 
-## Pergunta derivada
+É possível dizer que com 95% de confiança a diferença das medianas, a partir das amostras (obtidas através do bootstrap), está no intervalo entre `r median.dados.extr.ci`. Ou seja, a diferença de atividade de usuários no Github entre *Terça, quarta, quinta* e *Segunda, sexta* é relevante e mostra que na parte do meio do meio de semana existe mais atividade do que nas extremidades (Segunda e sexta). Lembrando que estamos comparando os valores absolutos aqui e de forma não pareada considerando os dias do ano.
+
+Mas qual será o dia entre segunda e sexta que possui menos atividade?
+
+### Pergunta derivada
 **Entre a segunda e sexta existe uma diferença significativa de popularidade?**
 
 ```{r}
@@ -101,13 +110,17 @@ dados.github.segsex <- dados.github.summ %>%
 ```
 
 ```{r}
+set.seed(123)
 dados.github.segsex %>%
   ggplot(aes(x = isSEX, y = total)) +
   geom_jitter(width = .1, color = "#488888") +
-  labs(title = "Atividade de usuários na Sexta(TRUE) e na Segunda(FALSE)", x = "é Segunda e Sexta", y = "Usuários") +
+  labs(title = "Atividade de usuários na Sexta e na Segunda", x = "Dia da semana", y = "Usuários") +
+  scale_x_discrete(labels= c("Segunda", "Sexta")) +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
+Novamente não parece haver uma diferença muito clara. Vamos olhar o intervalo de confiança da diferença das medianas para as duas observações e identifiar se essa diferença é significativa ou não.
+  
 ```{r}
 median.dados.segsex <- bootstrap2(dados.github.segsex$total,
                           treatment = dados.github.segsex$isSEX,
@@ -122,4 +135,32 @@ data.frame(median.dados.segsex.ci) %>%
   geom_hline(yintercept = 0, colour = "darkorange")
 ```
 
+Com 95% de confiança o intervalo da diferença mediana entre os dois grupos está no intervalo `r median.dados.segsex.ci`. Dessa vez percebemos que o intervalo contém o zero, o que pode indicar que existe a confiança de que a diferença verdadeira seja nenhuma ou seja 0, mas pode ser que seja algo bem maior como 8000 usuários. Portanto, não podemos concluir se existe uma diferença significativa de popularidade entre segunda e sexta, pode ser que seja de 8000 (atividade na segunda - atividade na sexta) mas pode ser nula também.
+
+## Pergunta 2
+
+```{r}
+dados.github.week <- dados.github %>%
+  filter(the_year == 2016) %>%
+  unite("date", the_year, the_month, month_day, sep = "-") %>%
+  mutate(date = as.Date(strptime(date, "%Y-%m-%d"))) %>%
+  group_by(date) %>%
+  summarise(total = sum(users)) %>%
+  mutate(week = week(date)) %>%
+  mutate(isFDS = is.weekend(date))
+```
+
+```{r}
+dados.week.summ <- dados.github.week %>%
+  group_by(week, isFDS) %>%
+  summarise(n = sum(total)) %>%
+  spread(isFDS, n) %>%
+  rename("fds" = `TRUE`) %>%
+  rename("mds" = `FALSE`)
+```
+
+```{r}
+dados.week.summ <- dados.week.summ %>%
+  mutate(prop_fds = fds / (fds + mds))
+```
 
