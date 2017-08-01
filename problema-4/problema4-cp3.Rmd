@@ -18,6 +18,7 @@ library(highcharter)
 library(ggplot2)
 library(resample)
 library(chron)
+library(lubridate)
 theme_set(theme_light())
 ```
 
@@ -139,6 +140,10 @@ Com 95% de confiança o intervalo da diferença mediana entre os dois grupos est
 
 ## Pergunta 2
 
+**Qual a proporção de atividade de usuários no Github no final de semana com relação toda a semana?**
+
+Para responder essa pergunta estamos interessados em observar por semana, em 2016, a proporção de atividade de usuários no fim da respectiva semana com relação a semana inteira. Para afirmar com 95% de confiança utilizaremos o bootstrap e o intervalo de confiança.
+
 ```{r}
 dados.github.week <- dados.github %>%
   filter(the_year == 2016) %>%
@@ -163,4 +168,53 @@ dados.week.summ <- dados.github.week %>%
 dados.week.summ <- dados.week.summ %>%
   mutate(prop_fds = fds / (fds + mds))
 ```
+
+```{r}
+median.prop.fds = bootstrap(dados.week.summ, 
+                        median(prop_fds), 
+                        R = 30000) %>% 
+    CI.percentile(probs = c(.025, .975))
+```
+
+```{r}
+data.frame(median.prop.fds) %>% 
+  ggplot() + 
+  geom_errorbar(aes(x = "Mediana da proporção", ymin = X2.5., ymax = X97.5.), width = .2) + 
+  geom_hline(yintercept = 0, colour = "darkorange")
+```
+
+A mediana da proporção da população, com 95% de confiança está no intervalo entre `r median.prop.fds`. Ou seja, se levarmos em consideração de que se cada dia da semana tivesse a mesma proporção de usuários com relação a semana toda teríamos `r 1/7` % por dia, ou ainda `r 2/7` % em um final de semana, mas como observamos o intervalo mostrado com 95% de confiança diz que no final de semana a proporção está entre `r median.prop.fds`. Ou seja, considerando cada semana do ano de 2016, é possível afirmar que no final de semana houve menor atividade de usuários no Github.
+
+### Pergunta derivada
+**Qual a diferença entre as proporções de atividades de usuários no meio de semana para o fim de semana?**
+
+Para responder essa pergunta precisamos ter as informações para cada semana de 2016 das proporções de atividade no fim de semana e no meio de semana. Claro que o fim de semana é considerado menor e só possui 2 dias, mas ainda sim essa diferença pode ajudar a entender como a atividade dos usuários no Github muda entre dias úteis e não.
+
+```{r}
+dados.week.summ <- dados.week.summ %>%
+  mutate(prop_mds = mds / (fds + mds))
+```
+
+```{r}
+dados.week.diff <- dados.week.summ %>%
+  mutate(prop_diff = prop_mds - prop_fds) %>%
+  select(week, prop_diff)
+```
+
+```{r}
+median.diff = bootstrap(data = dados.week.diff$prop_diff, median, R = 30000)
+
+median.diff.paired = CI.percentile(median.diff, probs = c(.025, .975))
+```
+
+```{r}
+data.frame(median.diff.paired) %>% 
+  ggplot() + 
+  geom_errorbar(aes(x = "Diferença da proporção", ymin = X2.5., ymax = X97.5.), width = .2) + 
+  geom_hline(yintercept = 0, colour = "darkorange")
+```
+
+Com 95% de confiança a diferença entre as proporções do meio de semana e o fim de semana está no intervalo entre `r median.diff.paired`. Ou seja, é possível afirmar que existe mais de 60 % de atividade durante a semana do que no fim de semana para cada semana do ano de 2016. Com essa resposta, a da questão anterior e a resposta contida no checkpoint anterior (Para java e go) é possível ter certa confiança em afirmar que existe sim uam diminuição da atividade durante o fim de semana. Afinal quem não precisa descansar um pouco né? Eu mesmo irei descansar agora que já tá bem tarde aqui, talvez você queira fazer o mesmo. Obrigado pela leitura e atenção até aqui. Até a próxima análise!!!
+
+
 
