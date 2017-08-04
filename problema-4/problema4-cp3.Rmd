@@ -120,7 +120,7 @@ dados.github.segsex %>%
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
-Novamente não parece haver uma diferença muito clara. Vamos olhar o intervalo de confiança da diferença das medianas para as duas observações e identifiar se essa diferença é significativa ou não.
+Novamente não parece haver uma diferença muito clara. Vamos olhar o intervalo de confiança da diferença das medianas para as duas observações e identificar se essa diferença é significativa ou não.
   
 ```{r}
 median.dados.segsex <- bootstrap2(dados.github.segsex$total,
@@ -136,7 +136,7 @@ data.frame(median.dados.segsex.ci) %>%
   geom_hline(yintercept = 0, colour = "darkorange")
 ```
 
-Com 95% de confiança o intervalo da diferença mediana entre os dois grupos está no intervalo `r median.dados.segsex.ci`. Dessa vez percebemos que o intervalo contém o zero, o que pode indicar que existe a confiança de que a diferença verdadeira seja nenhuma ou seja 0, mas pode ser que seja algo bem maior como 8000 usuários. Portanto, não podemos concluir se existe uma diferença significativa de popularidade entre segunda e sexta, pode ser que seja de 8000 (atividade na segunda - atividade na sexta) mas pode ser nula também.
+Com 95% de confiança o intervalo da diferença mediana entre os dois grupos está no intervalo `r median.dados.segsex.ci`. Dessa vez percebemos que o intervalo contém o zero, o que pode indicar que existe a possibilidade de que a diferença verdadeira seja nenhuma ou seja 0, mas pode ser que seja algo bem maior como 8000 usuários. Portanto, não podemos concluir se existe uma diferença significativa de popularidade entre segunda e sexta, pode ser que seja de 8000 (atividade na segunda - atividade na sexta) mas pode ser nula também ou até negativa, ou seja na sexta há mais atividade.
 
 ## Pergunta 2
 
@@ -183,7 +183,7 @@ data.frame(median.prop.fds) %>%
   geom_hline(yintercept = 0, colour = "darkorange")
 ```
 
-A mediana da proporção da população, com 95% de confiança está no intervalo entre `r median.prop.fds`. Ou seja, se levarmos em consideração de que se cada dia da semana tivesse a mesma proporção de usuários com relação a semana toda teríamos `r 1/7` % por dia, ou ainda `r 2/7` % em um final de semana, mas como observamos o intervalo mostrado com 95% de confiança diz que no final de semana a proporção está entre `r median.prop.fds`. Ou seja, considerando cada semana do ano de 2016, é possível afirmar que no final de semana houve menor atividade de usuários no Github.
+A mediana da proporção da população, com 95% de confiança está no intervalo entre `r median.prop.fds`. Ou seja, se levarmos em consideração de que se cada dia da semana tivesse a mesma proporção de usuários com relação a semana toda teríamos `r 1/7` % por dia, ou ainda `r 2/7` % em um final de semana, mas como observamos o intervalo mostrado com 95% de confiança diz que no final de semana a proporção está entre `r median.prop.fds`. Ou seja, considerando cada semana do ano de 2016, é possível afirmar que no final de semana houve menor atividade de usuários no Github do que no meio de semana.
 
 ### Pergunta derivada
 **Qual a diferença entre as proporções de atividades de usuários no meio de semana para o fim de semana?**
