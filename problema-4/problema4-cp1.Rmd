@@ -103,7 +103,7 @@ highchart(type = "stock") %>%
   hc_add_series(data_flags, hcaes(x = date), type = "flags", onSeries = "java")
   
 ```
-Como era de se esperar, existem mais pessoas programando em Java do que em Go, uma vez que Java é uma linguagem mundialmente conhecida, consolidada e utilizada tanto academica quanto profissionalmente. Além disso as oscilações em Java parecem ser maiores (no sentido da diferença entre dias vizinhos) do que em Go.
+Como era de se esperar, existem mais pessoas programando em Java do que em Go, uma vez que Java é uma linguagem mundialmente conhecida, consolidada e utilizada tanto academica quanto profissionalmente. Além disso as oscilações em Java parecem ser maiores (no sentido da diferença absoluta entre dias vizinhos) do que em Go.
 
 Agora que já conhecemos nossos dados iremos responder a duas perguntas sobre os programadores dessas duas linguagens.
 
@@ -111,7 +111,7 @@ Agora que já conhecemos nossos dados iremos responder a duas perguntas sobre os
 
 **Para cada uma dessas linguagens, há uma diferença significativa na sua popularidade durante a semana e durante o fim de semana? Essa diferença é grande?**
 
-Para responder essa pergunta iremos determinar o intervalo de confiança para conseguirmos concluir algo sobre a diferença entre o grau de atividade dos programadores no meio de semana e no fim de semana. A medida estatística que utilizaremos será a mediana. Iremos responder a pergunta para as duas lingaugens de forma individual.
+Para responder essa pergunta iremos determinar o intervalo de confiança para conseguirmos concluir algo sobre a diferença entre o grau de atividade dos programadores no meio de semana e no fim de semana. A medida estatística que utilizaremos será a mediana. Iremos responder a pergunta para as duas linguagens de forma individual.
 
 ```{r}
 library(chron)
@@ -202,9 +202,11 @@ data.frame(median.diff.ci) %>%
   geom_errorbar(width = .2) + 
   geom_hline(yintercept = 0, colour = "darkorange")
 ```
-O critério utilizado para responder a pergunta foi de comparar entre as duas lingaugens, considerando apenas os fins de semana, qual delas tem maior variação na popularidade (entre os próprios fins de semana). 
+O critério utilizado para responder a pergunta foi de comparar dentre as duas linguagens, considerando apenas os fins de semana, qual delas tem maior variação na popularidade (entre os próprios fins de semana). 
 
-A medida estatística utilizada foi o desvio padrão, portanto estamos interessados em obter os desvios padrões para cada linguagem em cada fim de semana presente nos dados e qual a diferença entre esses desvios padrões entre Java e Go.
+A medida estatística utilizada foi o desvio padrão, portanto estamos interessados em obter os desvios padrões para cada linguagem em cada fim de semana presente nos dados e qual a diferença entre esses desvios padrões de Java e Go. O desvio padrão foi escolhido por ser uma medida de dispersão que pode evidenciar a variação da popularidade nos fins de semana.
 
 Com 95% de confiança a diferença do desvio padrão está no intervalo `r median.diff.ci`. Ou seja, é possível afirmar que existe uma maior variação nos finais de semana entre programadores java do que em programadores go.
+
+Por hoje é só, até a próxima análise !!!
 

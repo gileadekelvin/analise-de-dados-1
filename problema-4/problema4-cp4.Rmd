@@ -1,7 +1,7 @@
 ---
-title: "Github - Atividade de usuários"
+title: "Intervalo de Confiança e Teste de hipótese"
 author: "Gileade Kelvin"
-date: "28 de julho de 2017"
+date: "4 de agosto de 2017"
 output: html_document
 ---
 
@@ -12,14 +12,11 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="
 ```{r}
 library(dplyr)
 library(tidyr)
-library(xts)
 library(tibble)
+library(xts)
 library(highcharter)
 library(ggplot2)
 library(resample)
-library(chron)
-library(lubridate)
-theme_set(theme_light())
 ```
 
 ## Sobre os dados
@@ -54,7 +51,11 @@ highchart(type = "stock") %>%
 
 Acima podemos observar a série temporal da atividade global do github durante o período disponível na amostra. É interessante notar um certo padrão na série, há altos e baixos com certa frequência e a linha parece uma onda ao longo do período. Há uma suspeita de que os **vales** sejam os fins de semana e os **picos** ou as **cristas** da "onda"  sejam no meio de semana. Outra curiosidade interessante está nos considerados **feriados** que possuem escala mundial como Natal e Ano novo, é clara a diferença de atividade nessas datas com relação aos demais dias do ano.
 
-## Pergunta 1
+## Intervalo de confiança vs Teste de hipótese
+
+O objetivo dessa análise é responder duas perguntas utilizando duas técnicas para poder afirmar algo sobre a população, que nesse caso é a atividade global no github, a partir da amostra que temos e visualizamos acima. Primeiramente iremos responder utilizando intervalo de confiança e em seguida iremos comparar os resultados obtidos quando aplicamos teste de hipótese.
+
+### Pergunta 1
 
 **Segunda e sexta têm popularidade menor que terça, quarta e quinta?**
 
@@ -97,11 +98,45 @@ data.frame(median.dados.extr.ci) %>%
   geom_hline(yintercept = 0, colour = "darkorange")
 ```
 
-É possível dizer que com 95% de confiança a diferença das medianas, a partir das amostras (obtidas através do bootstrap), está no intervalo entre `r median.dados.extr.ci`. Ou seja, a diferença de atividade de usuários no Github entre *Terça, quarta, quinta* e *Segunda, sexta* é relevante e mostra que na parte do meio do meio de semana existe mais atividade do que nas extremidades (Segunda e sexta). Lembrando que estamos comparando os valores absolutos aqui e de forma não pareada considerando os dias do ano.
+É possível dizer que com 95% de confiança a diferença das medianas, a partir das amostras (obtidas através do bootstrap), está no intervalo entre `r median.dados.extr.ci`. Ou seja, a diferença de atividade de usuários no Github entre *Terça, quarta, quinta* e *Segunda, sexta* é relevante e mostra que na parte do "meio do meio de semana" existe mais atividade do que nas extremidades (Segunda e sexta). Lembrando que estamos comparando os valores absolutos aqui e de forma não pareada considerando os dias do ano. Existe, portanto, relevância na diferença entre o número de usuários ativos na segunda e na sexta e nos ativos no meio (terça, quarta e quinta) de semana.
 
-Mas qual será o dia entre segunda e sexta que possui menos atividade?
+Com intervalo de confiança, além de conseguirmos identificar se existe diferença das medianas também podemos identificar o intervalo dessa diferença. Ou seja, aplicando essa técnica temos o poder de mensurar o quão relevante é a diferença e não apenas se ela existe ou não.
 
-### Pergunta derivada
+Abaixo utilizaremos o teste de hipótese para inferir sobre a população a partir da amostra. É importante introduzir alguns conceitos antes de continuarmos.
+
+**Hipótese nula (H0):** no nosso caso será que *não existe diferença* entre atividade de usuários no github de *segunda/sexta* para *terça/quarta/quinta*.
+
+**p-valor:** é a probabilidade de que a estatística do teste (como variável aleatória) tenha valor extremo em relação ao valor observado (estatística) quando a hipótese H0 é verdadeira. Em outras palavras, qual a chance de que se uma amostra aleatória que ignorasse o pareamento entre os dados fosse gerada se a mesma geraria a mesma estatística que na amostra observada. Todavia, não é exatamente correto dizer que o p-valor é a chance do acaso, também não é O a probabilidade da hipótese nula ter sido enganosamente rejeitada, e também não é a probabilidade da hipótese nula de um teste ser verdadeira. Se ainda não ficou claro, você irá entender melhor daqui a pouco.
+
+```{r}
+dados.github.p <- dados.github.extr %>%
+  select(c(isEXT, total))
+```
+
+```{r}
+library(coin)
+median_teste <- median_test(total ~ as.factor(isEXT), 
+            data = dados.github.p, 
+            distribution = "exact")
+
+median_teste %>% pvalue()
+```
+
+Acima temos o p-valor para a diferença entre as medianas de atividade no github das extremidades do meio de semana para o meio do meio de semana. Esse p-valor é de `r median_teste %>% pvalue()`, é um valor bem baixo. É sempre complicado e polêmico determinar um limiar para determinar a significância no entanto, quando o valor é tão baixo como o caso é possível afirmar que: existe uma diferença significativa entre FALSE e TRUE ou seja entre ser terça, quarta e quinta e ser segunda e sexta. O p-valor não nos permite afirmar qual o intervalo que contêm essa diferença e qual o nível de confiança que temos no intervalo, já no intervalo de confiança podemos obter esse intervalo.
+
+Abaixo temos outro cálculo do p-valor, dessa vez através da biblioteca *resample*
+
+```{r}
+options(scipen = 999)
+permutationTest2(dados.github.p, median(total), treatment = isEXT)$stats %>% t()
+```
+
+Não sei por qual motivo o p-valor é diferente do retornado na biblioteca anterior, no entanto o p-valor ainda é baixo e portanto a interpretação é a mesma.
+
+Duas coisas ficaram claras: p-valor e intervalode confiança têm objetivos distintos, e são duas formas de enxergar como inferir sobre a população a partir da amostra. Outra coisa é de que o intervalo de confiança também retorna o intervalo, com certo nível de confiança, no qual a diferença está, enquanto p-valor retorna a significância do teste e se é possível ou não que a hipótese nula seja verdadeira mesmo se reamostrarmos ignorando as relações entre os dados.
+
+### Pergunta 2
+
 **Entre a segunda e sexta existe uma diferença significativa de popularidade?**
 
 ```{r}
@@ -138,83 +173,23 @@ data.frame(median.dados.segsex.ci) %>%
 
 Com 95% de confiança o intervalo da diferença mediana entre os dois grupos está no intervalo `r median.dados.segsex.ci`. Dessa vez percebemos que o intervalo contém o zero, o que pode indicar que existe a possibilidade de que a diferença verdadeira seja nenhuma ou seja 0, mas pode ser que seja algo bem maior como 8000 usuários. Portanto, não podemos concluir se existe uma diferença significativa de popularidade entre segunda e sexta, pode ser que seja de 8000 (atividade na segunda - atividade na sexta) mas pode ser nula também ou até negativa, ou seja na sexta há mais atividade.
 
-## Pergunta 2
-
-**Qual a proporção de atividade de usuários no Github no final de semana com relação toda a semana?**
-
-Para responder essa pergunta estamos interessados em observar por semana, em 2016, a proporção de atividade de usuários no fim da respectiva semana com relação a semana inteira. Para afirmar com 95% de confiança utilizaremos o bootstrap e o intervalo de confiança.
+Se calcularmos o p-valor temos:
 
 ```{r}
-dados.github.week <- dados.github %>%
-  filter(the_year == 2016) %>%
-  unite("date", the_year, the_month, month_day, sep = "-") %>%
-  mutate(date = as.Date(strptime(date, "%Y-%m-%d"))) %>%
-  group_by(date) %>%
-  summarise(total = sum(users)) %>%
-  mutate(week = week(date)) %>%
-  mutate(isFDS = is.weekend(date))
+dados.segsex.p <- dados.github.segsex %>%
+  select(c(isSEX, total))
 ```
 
 ```{r}
-dados.week.summ <- dados.github.week %>%
-  group_by(week, isFDS) %>%
-  summarise(n = sum(total)) %>%
-  spread(isFDS, n) %>%
-  rename("fds" = `TRUE`) %>%
-  rename("mds" = `FALSE`)
+median_teste <- median_test(total ~ as.factor(isSEX), 
+            data = dados.segsex.p, 
+            distribution = "exact")
+
+median_teste %>% pvalue()
 ```
+Com p-valor acima não é possível dizer que existe uma diferença significativa entre a segunda e a sexta. O p-valor, em porcentagem, é cerca de 9%, acima do limiar clássico estabelecido de 5% para que haja significância na diferença. Ou seja, tanto o intervalo de confiança quanto o p-valor concordaram em não conseguir concluir que existe uma diferença de atividade de usuários entre a segunda e a sexta.
 
-```{r}
-dados.week.summ <- dados.week.summ %>%
-  mutate(prop_fds = fds / (fds + mds))
-```
-
-```{r}
-median.prop.fds = bootstrap(dados.week.summ, 
-                        median(prop_fds), 
-                        R = 30000) %>% 
-    CI.percentile(probs = c(.025, .975))
-```
-
-```{r}
-data.frame(median.prop.fds) %>% 
-  ggplot() + 
-  geom_errorbar(aes(x = "Mediana da proporção", ymin = X2.5., ymax = X97.5.), width = .2) + 
-  geom_hline(yintercept = 0, colour = "darkorange")
-```
-
-A mediana da proporção da população, com 95% de confiança está no intervalo entre `r median.prop.fds`. Ou seja, se levarmos em consideração de que se cada dia da semana tivesse a mesma proporção de usuários com relação a semana toda teríamos `r 1/7` % por dia, ou ainda `r 2/7` % em um final de semana, mas como observamos o intervalo mostrado com 95% de confiança diz que no final de semana a proporção está entre `r median.prop.fds`. Ou seja, considerando cada semana do ano de 2016, é possível afirmar que no final de semana houve menor atividade de usuários no Github do que no meio de semana.
-
-### Pergunta derivada
-**Qual a diferença entre as proporções de atividades de usuários no meio de semana para o fim de semana?**
-
-Para responder essa pergunta precisamos ter as informações para cada semana de 2016 das proporções de atividade no fim de semana e no meio de semana. Claro que o fim de semana é considerado menor e só possui 2 dias, mas ainda sim essa diferença pode ajudar a entender como a atividade dos usuários no Github muda entre dias úteis e não.
-
-```{r}
-dados.week.summ <- dados.week.summ %>%
-  mutate(prop_mds = mds / (fds + mds))
-```
-
-```{r}
-dados.week.diff <- dados.week.summ %>%
-  mutate(prop_diff = prop_mds - prop_fds) %>%
-  select(week, prop_diff)
-```
-
-```{r}
-median.diff = bootstrap(data = dados.week.diff$prop_diff, median, R = 30000)
-
-median.diff.paired = CI.percentile(median.diff, probs = c(.025, .975))
-```
-
-```{r}
-data.frame(median.diff.paired) %>% 
-  ggplot() + 
-  geom_errorbar(aes(x = "Diferença da proporção", ymin = X2.5., ymax = X97.5.), width = .2) + 
-  geom_hline(yintercept = 0, colour = "darkorange")
-```
-
-Com 95% de confiança a diferença entre as proporções do meio de semana e o fim de semana está no intervalo entre `r median.diff.paired`. Ou seja, é possível afirmar que existe mais de 60 % de atividade durante a semana do que no fim de semana para cada semana do ano de 2016. Com essa resposta, a da questão anterior e a resposta contida no checkpoint anterior (Para java e go) é possível ter certa confiança em afirmar que existe sim uam diminuição da atividade durante o fim de semana. Afinal quem não precisa descansar um pouco né? Eu mesmo irei descansar agora que já tá bem tarde aqui, talvez você queira fazer o mesmo. Obrigado pela leitura e atenção até aqui. Até a próxima análise!!!
+Essa foi a análise de hoje, até a próxima!
 
 
 
