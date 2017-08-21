@@ -114,6 +114,7 @@ dados.github.p <- dados.github.extr %>%
 ```
 
 ```{r}
+options(scipen = 999)
 library(coin)
 median_teste <- median_test(total ~ as.factor(isEXT), 
             data = dados.github.p, 
@@ -127,7 +128,6 @@ Acima temos o p-valor para a diferença entre as medianas de atividade no github
 Abaixo temos outro cálculo do p-valor, dessa vez através da biblioteca *resample*
 
 ```{r}
-options(scipen = 999)
 permutationTest2(dados.github.p, median(total), treatment = isEXT)$stats %>% t()
 ```
 
