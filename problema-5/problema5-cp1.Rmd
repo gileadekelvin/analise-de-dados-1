@@ -1,0 +1,57 @@
+---
+title: "Encontros românticos"
+author: "Gileade Kelvin"
+date: "15 de agosto de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="center")
+```
+
+```{r}
+library(tidyverse)
+library(modelr)
+library(broom)
+```
+
+```{r}
+speed_dating <- read.csv("speed-dating.csv")
+```
+
+```{r}
+data_dating <- speed_dating %>%
+  select(attr, gender, fun, intel, like) %>%
+  mutate(gen = if_else(gender == 0, "Mulher", "Homem"))
+```
+
+```{r}
+date.model = lm(like ~ attr + intel + fun, data = data_dating)
+
+date_augmented = data_dating %>% 
+  add_predictions(date.model) %>% 
+  add_residuals(date.model)
+
+tidy(date.model, conf.int = TRUE)
+```
+
+```{r}
+date_augmented %>% 
+  ggplot(aes(x = attr)) + 
+  geom_count(aes(y = like)) +
+  geom_line(aes(y = pred), size = 2, colour = "blue")
+  
+```
+
+```{r}
+date_augmented %>% 
+  ggplot(aes(x = attr)) + 
+  geom_count(aes(y = resid), size = 2) +
+  geom_ref_line(h = 0, colour = "grey80")
+
+tidy(date.model, conf.int = TRUE)
+glance(date.model, conf.int = TRUE)
+```
+
+
+
