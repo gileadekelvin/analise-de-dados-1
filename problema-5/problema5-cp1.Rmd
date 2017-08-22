@@ -13,45 +13,172 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="
 library(tidyverse)
 library(modelr)
 library(broom)
+library(GGally)
+library(ggfortify)
+library(DT)
+theme_set(theme_bw())
 ```
 
 ```{r}
 speed_dating <- read.csv("speed-dating.csv")
 ```
 
+Na análise de hoje iremos utilizar um conjunto de dados que descrevem encontros relâmpagos realizados por pessoas nos EUA. Ao final de cada encontro os integrantes respondiam a um formulário sobre diversas características próprias e principalmente da pessoa com quem o encontro aconteceu. A base de dados pode ser encontrada [aqui](https://github.com/nazareno/ciencia-de-dados-1/tree/master/5-regressao/speed-dating), como existem muitas variáveis, escolherei apenas algumas delas para que possamos primeiramente ter um panorama de geral de como os dados se apresentam e posteriormente utilizar regressão para obter modelos que possam descrever o comportamento dos dados e responder a algumas perguntas interessantes.
+
+### Sobre os dados
+
+Para responder as perguntas contidas nesse post, estamos interessados em observar a priori três variáveis-independentes (shar, attr, fun) e uma variável dependente (like).
+
+**shar: ** O quanto uma pessoa acha que compartilhou interesses e hobbies com outra pessoa. Ou seja, o quão comum são os interesses entre as duas pessoas do encontro.
+**attr: ** O quanto uma pessoa acha a outra atraente.
+**fun: ** O quanto uma pessoa acha a outra divertida.
+
+**like: ** O quanto uma pessoa gostou da outra.
+
+Em todas essas variáveis os valores possíveis são os números inteiros entre 1 e 10. Optei por remover as observações de encontros nas quais não foram preenchidas alguma dessas variáveis.
+
 ```{r}
-data_dating <- speed_dating %>%
-  select(attr, gender, fun, intel, like) %>%
-  mutate(gen = if_else(gender == 0, "Mulher", "Homem"))
+encontros <- speed_dating %>%
+  select(shar, attr, fun, like) %>%
+  na.omit()
 ```
 
 ```{r}
-date.model = lm(like ~ attr + intel + fun, data = data_dating)
+jitter <- function(data, mapping){
+  p <- ggplot(data = data, mapping = mapping) + 
+    geom_jitter(alpha = .05)
+  p
+}
 
-date_augmented = data_dating %>% 
-  add_predictions(date.model) %>% 
-  add_residuals(date.model)
-
-tidy(date.model, conf.int = TRUE)
+encontros %>%
+  ggpairs(lower = list(continuous = jitter))
 ```
+Como podemos observar no gráfico acima, a correlação entre as variáveis escolhidas (shar, attr, fun) e a variável resposta é alta em todos os casos. A visualização do gráfico de dispersão mostra, que como os valores possíveis são inteiros, a faixa central, mais escura denota a relação entre os pares de variáveis. Para as 3 variáveis de entrada com a variável like observamos uma tendência de subida na dispersão dos pontos, ou seja, quando as variáveis aumentam de valor a variável like também aumenta.
+
+É importante enfatizar que correlação não implica causalidade.
+
+### Será que ser atraente, compartilhar interesses e ser divertido influencia o quanto alguém pode gostar de você?
+
+Agora que já conhecemos as variáveis que iremos trabalhar e como relas se relacionam, podemos responder a essa pergunta utilizando regressão e considerando o efeito das variáveis shar, attr e fun na variável like.
 
 ```{r}
-date_augmented %>% 
+model.encontros = lm(like ~ shar + attr + fun, data = encontros)
+
+encontros_augmented = encontros %>% 
+  add_predictions(model.encontros) %>% 
+  add_residuals(model.encontros)
+```
+
+Podemos observar os resíduos do modelo para cada preditor (variável-independente escolhida):
+
+```{r}
+encontros_augmented %>% 
+  ggplot(aes(x = shar)) + 
+  geom_jitter(aes(y = resid), alpha = .5)
+```
+Como é possível observar, para a maioria das observações o modelo descreveu bem os dados com a exceção de alguns pontos que ultrapassaram a diferença de 4 entre a predição e a medida real. No entanto esse é o efeito de resíduo considerando apenas a variável shar.
+
+Se considerarmos as demais variáveis isoladamente temos:
+
+```{r}
+encontros_augmented %>% 
   ggplot(aes(x = attr)) + 
-  geom_count(aes(y = like)) +
-  geom_line(aes(y = pred), size = 2, colour = "blue")
-  
+  geom_jitter(aes(y = resid), alpha = .5)
+```
+
+O resultado é semelhante ao encontrado na variável shar.
+
+E por último:
+
+```{r}
+encontros_augmented %>% 
+  ggplot(aes(x = fun)) + 
+  geom_jitter(aes(y = resid), alpha = .5)
+
+```
+Também encontramos grande parte das observações com resíduo próximo a 0. O que pode indicar que o modelo está descrevendo bem os dados.
+
+Agora que já conhecemos os resíduos gerados pelo nosso modelo para cada variável preditora individualmente podemos examinar os coeficientes e o modelo.
+
+```{r}
+datatable(tidy(model.encontros, conf.int = TRUE) %>% 
+  select(-std.error, -p.value), class = 'cell-border stripe')
+```
+Os coeficientes estimados para as variáveis shar, attr e fun são respectivamente **0.26**, **0.34** e **0.27** respectivamente. Ou seja, é possível afirmar que quando essas três variáveis aumentam a variável-respota like também aumenta. 
+
+Se considerarmos os intervalos com 95% de confiança, percebemos que para todas as variáveis o intervalo não contêm o 0, portanto a estimativa do coeficiente para as variáveis é significativa.
+
+Se levarmos em conta a interpretação individual de cada coeficiente podemos chegar a conclusão que: quando se aumenta 1 unidade na variável shar (nível de interesses em comum) então a variável like (o quanto gostei de alguém) aumenta em ~0.26 unidade. O mesmo ocorre para attr, em que 1 unidade aumenta 0.34 de like, e para fun em que 1 unidade aumenta 0.27 de like. Segundo a estimativa dentre essas três variáveis, a que mais influencia a variável like é a attr, o quanto alguém é atraente.
+
+Só nos últimos parágrafos apresentei como o modelo se comporta com relação a significância, relevância, e magnitude dos coeficientes. Agora vamos entender mais um pouco sobre o modelo e mais especificamente sobre o R quadrado. 
+
+```{r}
+datatable(glance(model.encontros) %>% select(r.squared, adj.r.squared, sigma, statistic, p.value), class = 'cell-border stripe')
+```
+
+O R quadrado é uma medida de ajustamento de um modelo estatístico linear. Ele indica o quanto o modelo consegue explicar dos dados observados. O nosso modelo, considerando as três variáveis, consegue explicar `r glance(model.encontros) %>% select(r.squared) %>% mutate(r.squared = round(r.squared *100, 2))` % da variação observada para a variável like! 
+
+Respondendo a pergunta inicial (*Será que ser atraente, compartilhar interesses e ser divertido influencia o quanto alguém pode gostar de você?*) podemos afirmar que `r glance(model.encontros) %>% select(r.squared) %>% mutate(r.squared = round(r.squared *100, 2))` % da variação do gostar de alguém pode ser explicado por essas variáveis!
+
+```{r}
+model_plot = encontros %>% 
+  data_grid(shar = seq_range(shar, 10), 
+            attr = seq_range(attr, 4),
+            fun = seq_range(fun, 3)) %>% 
+  add_predictions(model.encontros)
+```
+
+Abaixo podemos visualizar o modelo e como as variáveis (shar, attr, fun) influenciam a variável like.
+
+```{r}
+model_plot %>% 
+  ggplot(aes(x = shar, y = pred)) + 
+  geom_line(aes(group = attr, colour = attr)) + 
+  facet_grid(. ~ fun)
+```
+A predição da variável like está no eixo x. A variável shar (interesses em comum) está no eixo x, e quanto mais interesse em comum mais alguém gosta de alguém. As cores diferentes mostra que, quanto mais clara a cor mais alguém é considerado atraente. Quanto mais alguém é atraente mais é "gostável". E por fim, as diferentes facetas indicam que quanto mais divertido alguém é, mais se gosta desse alguém. A visualização acima nos ajuda a entender como o modelo se comporta com relação as variáveis-independentes e a variável-resposta.
+
+### Será que o efeito de ser atraente em gostar de alguém muda quando quem avalia é homem ou mulher?
+
+Para responder essa pergunta iremos atrelar o efeito que ser atraente causa em gostar de alguem quando quem avalia é mulher ou não. Para isso utilizaremos o seguinte modelo de regressão linear:
+
+```{r}
+encontros_gender <- speed_dating %>%
+  select(gender, attr, like) %>%
+  mutate(gen = if_else(gender == 0, TRUE, FALSE)) %>%
+  na.omit()
 ```
 
 ```{r}
-date_augmented %>% 
-  ggplot(aes(x = attr)) + 
-  geom_count(aes(y = resid), size = 2) +
-  geom_ref_line(h = 0, colour = "grey80")
-
-tidy(date.model, conf.int = TRUE)
-glance(date.model, conf.int = TRUE)
+model.gender.encontros <- lm(like ~ gen * attr, data = encontros_gender)
 ```
 
+```{r}
+model.gender.augment = encontros_gender %>% 
+  add_predictions(model.gender.encontros) %>%
+  add_residuals(model.gender.encontros)
 
+```
 
+```{r}
+model.gender.augment %>% 
+  ggplot(aes(x = attr)) + 
+  geom_count(aes(y = resid), alpha = .5)
+```
+
+Os resíduos do modelo parecem estar concetrados na faixa entre -4 e 4, se considerarmos que a variável like vai de 1 até 10, é considerável o número de observações que o modelo não explica. No entanto somente essa visualização não pode nos dizer muito sobre o modelo, precisamos de mais dados estatísticos para poder embasar alguma conclusão com mais confiança.
+
+```{r}
+datatable(tidy(model.gender.encontros, conf.int = TRUE) %>% 
+  select(-std.error, -p.value), class = 'cell-border stripe')
+```
+Para esse modelo percebemos que o coeficiente para quando o gênero do avaliado é mulher faz decrescer o quanto se gosta de uma pessoa, no entanto o intervalo de confiança, apesar de não incluir o zero, se aprixima de um valor muito próximo a 0, o que pode indicar que a estimativa desse coeficiente não é tão significativa. A variável attr, tem coeficiente próximo a **0.61** o que indica que aumentar uma unidade na nota de atraência aumenta em 0.61 unidades o quanto se gosta de alguém, para essa estimativa o intervalo de 95% de confiança não inclui o zero e é significativo. Para o último termo do modelo, temos o quanto o avaliador ser mulher e o quanto ser atraente pode influenciar de maneira associada se alguém é "gostável" (*likeable*) ou não, o valor é bastante pequeno, ou seja, a relevância é pequena, o intevalo de confiança se aproxima bem do zero, o que indica que a significância também é baixa.
+
+Ufa! No parágrafo anterior falamos de relevância, significância e magnitude das variáveis preditoras. Mas e sobre o quanto nosso modelo representa da variação dos dados? O que podemos dizer?
+
+```{r}
+datatable(glance(model.gender.encontros) %>% select(r.squared, adj.r.squared, sigma, statistic, p.value), class = 'cell-border stripe')
+```
+Cerca de `r glance(model.gender.encontros) %>% select(r.squared) %>% mutate(r.squared = round(r.squared *100, 2))` % da variação das observações pode ser observada adotando esse modelo.
+
+Por hoje é só! Até a próxima análise!!!
