@@ -1,0 +1,54 @@
+---
+title: "Regressão Logística"
+author: "Gileade Kelvin"
+date: "25 de agosto de 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align="center")
+```
+
+```{r}
+library(tidyverse)
+library(broom)
+library(pscl)
+```
+
+
+```{r}
+x = read_csv("https://raw.githubusercontent.com/nazareno/ciencia-de-dados-1/master/5-regressao/speed-dating/speed-dating2.csv") %>% 
+  mutate(dec = as.factor(dec), 
+         gender = as.factor(gender))
+
+dating_model = glm(dec ~ gender + attr + fun + like + intel, 
+                  data = x, 
+                  family = "binomial")
+```
+
+```{r}
+tidy(dating_model, conf.int = TRUE, exponentiate = TRUE)
+expectativa_realidade = augment(dating_model, 
+                                type.predict = "response") 
+
+expectativa_realidade = expectativa_realidade %>% 
+  mutate(categoria_prevista = ifelse(.fitted > .5, "yes", "no"))
+
+table(expectativa_realidade$categoria_prevista, expectativa_realidade$gender)
+
+glance(dating_model)
+
+pR2(dating_model)
+```
+
+```{r}
+expectativa_realidade = augment(dating_model, 
+                                type.predict = "response") 
+
+expectativa_realidade = expectativa_realidade %>% 
+  mutate(categoria_prevista = ifelse(.fitted > .5, "yes", "no"))
+
+table(expectativa_realidade$categoria_prevista, expectativa_realidade$dec)
+```
+
+
